@@ -1,0 +1,32 @@
+.git
+.github
+.claude
+node_modules
+vendor
+storage/app/public/*
+storage/framework/cache/*
+storage/framework/sessions/*
+storage/framework/views/*
+storage/logs/*
+public/build
+public/storage
+public/hot
+public/dev-*
+database/database.sqlite
+.env
+.env.*
+!.env.example
+*.md
+!public/**/*.md
+
+# Originals for the sample models; only the built GLBs in public/models ship.
+resources/models/source
+
+# Superseded directories kept in the working tree; never ship them.
+public/vendor/webarhand
+public/vendor/mediapipe
+public/js
+public/data
+public/uploads
+uploads
+resources/js/ar-footvto-reference

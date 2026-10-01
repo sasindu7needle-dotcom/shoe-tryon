@@ -1,0 +1,21 @@
+@import 'tailwindcss';
+
+@source '../../vendor/laravel/framework/src/Illuminate/Pagination/resources/views/*.blade.php';
+@source '../views/**/*.blade.php';
+@source '../js/**/*.js';
+
+/* System fonts keep builds offline and the first paint instant. To use a brand
+   font, self-host the files in public/fonts and add an @font-face here. */
+@theme {
+    --font-sans: ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif,
+        'Apple Color Emoji', 'Segoe UI Emoji';
+}
+
+model-viewer {
+    --poster-color: transparent;
+    --progress-bar-color: var(--color-orange-500);
+}
+
+[hidden] {
+    display: none !important;
+}

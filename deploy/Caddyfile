@@ -1,0 +1,36 @@
+{
+	{$CADDY_GLOBAL_OPTIONS}
+
+	frankenphp
+	# Let's Encrypt needs an address for expiry notices; harmless when SERVER_NAME
+	# has no domain (then Caddy serves plain HTTP and issues no certificate).
+	email {$TLS_EMAIL:admin@localhost}
+}
+
+{$SERVER_NAME:localhost} {
+	root /app/public
+	encode zstd br gzip
+
+	# Long-lived assets. Their URLs carry ?v=TRYON_ASSET_VERSION, so bump that
+	# variable after changing anything here.
+	@immutable path /build/* /vendor/* /models/*
+	header @immutable Cache-Control "public, max-age=31536000, immutable"
+
+	@glb path *.glb
+	header @glb Content-Type model/gltf-binary
+
+	header -Server
+	header Strict-Transport-Security "max-age=31536000"
+
+	# Serve the pre-compressed .br/.gz built into the image instead of
+	# compressing the 19 MB tracking model on every request.
+	route @immutable {
+		file_server {
+			precompressed br gzip
+		}
+	}
+
+	php_server {
+		try_files {path} index.php
+	}
+}

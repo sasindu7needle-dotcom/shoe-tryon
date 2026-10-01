@@ -1,0 +1,39 @@
+# Single-container deployment for a small VPS (1 vCPU / 1 GB is enough).
+# Copy .env.production.example to .env, fill it in, then: docker compose up -d --build
+services:
+  app:
+    build: .
+    image: shoetryon
+    restart: unless-stopped
+    environment:
+      # ":80" serves plain HTTP; a hostname makes Caddy request a Let's Encrypt
+      # certificate automatically (ports 80 and 443 must be reachable).
+      SERVER_NAME: ${SERVER_NAME:-:80}
+      TLS_EMAIL: ${TLS_EMAIL:-}
+      APP_NAME: ${APP_NAME:-Shoe Try-On}
+      APP_KEY: ${APP_KEY:?Set APP_KEY in .env}
+      APP_URL: ${APP_URL:-http://localhost}
+      APP_ENV: production
+      APP_DEBUG: "false"
+      SESSION_SECURE_COOKIE: ${SESSION_SECURE_COOKIE:-true}
+      LOG_LEVEL: ${LOG_LEVEL:-warning}
+      TRYON_ASSET_VERSION: ${TRYON_ASSET_VERSION:-1}
+      TRYON_DETECTION_THRESHOLD: ${TRYON_DETECTION_THRESHOLD:-0.8}
+      TRYON_CAMERA_FOV: ${TRYON_CAMERA_FOV:-33}
+      TRYON_EMBED_ORIGINS: ${TRYON_EMBED_ORIGINS:-}
+      TRUSTED_PROXIES: ${TRUSTED_PROXIES:-}
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    volumes:
+      # Database, uploaded models and posters, logs.
+      - storage:/app/storage
+      # TLS certificates; keep them across deploys to avoid rate limits.
+      - caddy-data:/data
+      - caddy-config:/config
+
+volumes:
+  storage:
+  caddy-data:
+  caddy-config:
