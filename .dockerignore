@@ -1,8 +1,12 @@
 .git
 .github
 .claude
+.agents
+.codex
+backups
 node_modules
 vendor
+bootstrap/cache/*.php
 storage/app/public/*
 storage/framework/cache/*
 storage/framework/sessions/*

@@ -21,9 +21,10 @@ curl -fsSL https://get.docker.com | sh
 ## 3. Configure
 
 ```bash
-git clone <your repository> shoetryon && cd shoetryon
+git clone https://github.com/sasindu7needle-dotcom/shoe-tryon.git shoetryon
+cd shoetryon
 cp .env.production.example .env
-docker compose run --rm app php artisan key:generate --show   # paste into APP_KEY
+openssl rand -base64 32   # paste into APP_KEY with a base64: prefix
 nano .env                                                     # domain, email, APP_URL
 ```
 
@@ -67,13 +68,18 @@ Everything that matters (SQLite database, uploaded models and posters) lives in
 the `storage` volume:
 
 ```bash
-docker compose exec app tar czf - storage/app > backup-$(date +%F).tar.gz
+mkdir -p backups
+docker compose exec app php artisan down
+docker compose exec -T app tar czf - storage/app > backups/backup-$(date +%F-%H%M%S).tar.gz
+docker compose exec app php artisan up
 ```
 
 ## Behind Cloudflare or another proxy
 
-Set `SERVER_NAME=:80` and `TRUSTED_PROXIES=*` in `.env`, and let the proxy
-terminate TLS. Keep `SESSION_SECURE_COOKIE=true`.
+For an existing reverse proxy on the VPS, bind the app to an unused localhost
+port instead of taking ports 80/443. Set `SERVER_NAME=:80`, configure trusted
+proxy addresses, and keep `SESSION_SECURE_COOKIE=true`. For Cloudflare with
+direct Caddy HTTPS, keep the domain in `SERVER_NAME` and use Full (strict) TLS.
 
 ## Verify after deploying
 

@@ -3,6 +3,8 @@ name: Tests
 on:
   push:
     branches:
+      - main
+      - branch-1
       - master
       - '*.x'
   pull_request:

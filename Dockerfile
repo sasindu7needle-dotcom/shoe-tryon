@@ -13,8 +13,12 @@ RUN npm run build \
     && node scripts/precompress.mjs public/vendor public/models public/build
 
 
-# 2. PHP dependencies.
-FROM composer:2 AS vendor
+# 2. Use the same PHP version and extensions for dependencies and runtime.
+FROM dunglas/frankenphp:1-php8.4-trixie AS php-base
+RUN install-php-extensions intl opcache pdo_sqlite pdo_mysql zip
+COPY --from=composer:2 /usr/bin/composer /usr/local/bin/composer
+
+FROM php-base AS vendor
 WORKDIR /app
 COPY composer.json composer.lock ./
 RUN composer install --no-dev --no-interaction --no-progress --no-scripts --prefer-dist --optimize-autoloader
@@ -23,9 +27,7 @@ RUN composer install --no-dev --no-interaction --no-progress --no-scripts --pref
 # 3. Runtime: FrankenPHP serves PHP and static files from one process, with
 #    automatic HTTPS. One container is enough for a small VPS because all
 #    tracking runs in the shopper's browser.
-FROM dunglas/frankenphp:1-php8.4-trixie AS app
-
-RUN install-php-extensions intl opcache pdo_sqlite pdo_mysql zip
+FROM php-base AS app
 
 WORKDIR /app
 
@@ -40,6 +42,7 @@ RUN test -s public/vendor/webar-rocks/WebARRocksHand.js \
     && test -s public/vendor/webar-rocks/neural-nets/NN_FOOT_31.json.br \
     && test -s public/models/occluder.glb \
     && test -d public/models/samples \
+    && sed -i 's/\r$//' /usr/local/bin/entrypoint.sh \
     && chmod +x /usr/local/bin/entrypoint.sh \
     && composer dump-autoload --no-dev --optimize \
     && rm -rf resources/models/source tests

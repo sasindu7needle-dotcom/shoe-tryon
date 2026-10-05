@@ -34,7 +34,7 @@ chosen over MediaPipe and the other options.
 
 ## Requirements
 
-PHP 8.3+, Composer, Node 20.19+, and a phone with a rear camera for testing.
+PHP 8.4.1+, Composer, Node 22.12+, and a phone with a rear camera for testing.
 The camera needs **HTTPS** (or `localhost`).
 
 ## Run it locally

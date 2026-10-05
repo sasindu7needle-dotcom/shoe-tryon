@@ -2,8 +2,13 @@
 # Prepare the writable volume, migrate, cache config, then hand over to FrankenPHP.
 set -eu
 
+# Administrative commands should run directly, without starting the web server.
+if [ "$#" -gt 0 ]; then
+    exec "$@"
+fi
+
 if [ -z "${APP_KEY:-}" ]; then
-    echo 'APP_KEY is required. Generate one with: docker compose run --rm app php artisan key:generate --show' >&2
+    echo 'APP_KEY is required. Generate with openssl rand -base64 32 and prefix it with base64: in .env.' >&2
     exit 1
 fi
 
