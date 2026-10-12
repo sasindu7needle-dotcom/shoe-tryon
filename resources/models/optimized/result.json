@@ -1,0 +1,309 @@
+[
+  {
+    "slug": "street-runner",
+    "bytes": 980004,
+    "triangles": 22700,
+    "materials": 3,
+    "textures": [
+      {
+        "width": 1024,
+        "height": 1024,
+        "sha256": "f9de8f6302a898405c9fbbd7dcf165b215ae9b2cf9c0f5a77f8a90cc7bb7f705"
+      },
+      {
+        "width": 1024,
+        "height": 1024,
+        "sha256": "4b70d37e944ffe8d06c91be5a0fc167c142d6cec927a606516474db6d673d95e"
+      },
+      {
+        "width": 1024,
+        "height": 1024,
+        "sha256": "1ae78bf9e11da4c2bffdeb940b4b00619b495206d1e06d34122812a32c904f56"
+      },
+      {
+        "width": 1024,
+        "height": 1024,
+        "sha256": "5f85b50792a196c9a944f7b58f5d40dad72b0ff2887b0136fad4f64bfead8afb"
+      },
+      {
+        "width": 1024,
+        "height": 1024,
+        "sha256": "3b07a88e3dc11d14f8ae4e9bbabcc336e397319efe2e76712df0d2d38da2a6ad"
+      }
+    ],
+    "bounds": {
+      "min": [
+        -0.1489394988774854,
+        0,
+        -0.05789899969146878
+      ],
+      "max": [
+        0.14893949887748542,
+        0.15310100658334017,
+        0.05789899969146878
+      ]
+    },
+    "geometryHash": "f8ca1831768efe1d8aa8194f3332b69fbb23c7d62efcaaa9d8dde8b295e39119",
+    "variants": [
+      "midnight",
+      "beach",
+      "street"
+    ],
+    "fitProfile": {
+      "version": 1,
+      "anchors": {
+        "heel": [
+          -0.14893950521945953,
+          0,
+          -0.004000000189989805
+        ],
+        "toe": [
+          0.14893949031829834,
+          0,
+          -0.004000000189989805
+        ],
+        "sole": [
+          0,
+          0,
+          0
+        ],
+        "ankleOpening": [
+          -0.07900000363588333,
+          0.0860000029206276,
+          -0.004000000189989805
+        ]
+      },
+      "occlusion": {
+        "radius": [
+          0.032,
+          0.025
+        ],
+        "bottom": 0.06,
+        "top": 0.3
+      }
+    }
+  },
+  {
+    "slug": "canvas-sneaker",
+    "bytes": 409960,
+    "triangles": 8720,
+    "materials": 2,
+    "textures": [
+      {
+        "width": 1024,
+        "height": 1024,
+        "sha256": "7875732630766c41a4f5e98dfe5cd129233802bea398c6d7f0395f239720bb35"
+      },
+      {
+        "width": 1024,
+        "height": 1024,
+        "sha256": "2b4660bbfdf1789ed579659d6c6731076aee3e8de9a8c83ae09db1d4433e720d"
+      }
+    ],
+    "bounds": {
+      "min": [
+        -0.14,
+        0,
+        -0.056699121621707205
+      ],
+      "max": [
+        0.14,
+        0.11177525034617664,
+        0.056699121621707205
+      ]
+    },
+    "geometryHash": "8fcb05e4ec6a3bb030625141a6374a6ac1d9bc7d61325a29503f4a6b6ad21785",
+    "variants": [],
+    "fitProfile": {
+      "version": 1,
+      "anchors": {
+        "heel": [
+          -0.14000000059604645,
+          0,
+          0
+        ],
+        "toe": [
+          0.14000000059604645,
+          0,
+          0
+        ],
+        "sole": [
+          0,
+          0,
+          0
+        ],
+        "ankleOpening": [
+          -0.07500000298023224,
+          0.07500000298023224,
+          0
+        ]
+      },
+      "occlusion": {
+        "radius": [
+          0.029,
+          0.024
+        ],
+        "bottom": 0.045,
+        "top": 0.29
+      }
+    }
+  },
+  {
+    "slug": "ballet-flat",
+    "bytes": 385964,
+    "triangles": 12800,
+    "materials": 1,
+    "textures": [
+      {
+        "width": 1024,
+        "height": 1024,
+        "sha256": "acd0f4e7fbe8ed2aa8ddf875f339bc427544ecdc8cbebc7f0ebf7980ed952500"
+      },
+      {
+        "width": 1024,
+        "height": 1024,
+        "sha256": "c54e67b7f3c46b5d708e3c8af748d8ac308d7c9261eaeceebb80c2e25ae31f1d"
+      },
+      {
+        "width": 1024,
+        "height": 1024,
+        "sha256": "04cc0c754438b268ca8012352ee18753efda30c314b4387eb52b0f12d5f95518"
+      }
+    ],
+    "bounds": {
+      "min": [
+        -0.125,
+        0,
+        -0.04278435531851993
+      ],
+      "max": [
+        0.125,
+        0.06174805032915749,
+        0.04278435531851993
+      ]
+    },
+    "geometryHash": "df952407d96744df50a90b7c209b7c9f1cf0945240a06d3cc61398b643cd7ae8",
+    "variants": [],
+    "fitProfile": {
+      "version": 1,
+      "anchors": {
+        "heel": [
+          -0.125,
+          0,
+          0
+        ],
+        "toe": [
+          0.125,
+          0,
+          0
+        ],
+        "sole": [
+          0,
+          0,
+          0
+        ],
+        "ankleOpening": [
+          -0.07800000160932541,
+          0.03799999877810478,
+          0
+        ]
+      },
+      "occlusion": {
+        "radius": [
+          0.03,
+          0.023
+        ],
+        "bottom": 0.028,
+        "top": 0.27
+      }
+    }
+  },
+  {
+    "slug": "rain-boot",
+    "bytes": 466964,
+    "triangles": 14032,
+    "materials": 2,
+    "textures": [
+      {
+        "width": 1024,
+        "height": 1024,
+        "sha256": "ff42b4714215d41d61d3f9851501aeebdafa9cd5b8da376c6f0234c4574e34a8"
+      },
+      {
+        "width": 1024,
+        "height": 1024,
+        "sha256": "c3817c650478ac0691dc02f8c0ec37bc99dfe098eeb60b3982b14928ee8653d4"
+      },
+      {
+        "width": 1024,
+        "height": 1024,
+        "sha256": "8fa1f7d09af1875882723a3849ff178264eeeb4f4e826d739ebebb991b604808"
+      },
+      {
+        "width": 1024,
+        "height": 1024,
+        "sha256": "388388fcd4c27b355caafbe6d2b2e31497c3b6affe848cbccd9e5527aa70c6e4"
+      },
+      {
+        "width": 1024,
+        "height": 1024,
+        "sha256": "aab3fc585af987586c657929ebf9009de489d63e13a17d4690f004b5de2d7056"
+      },
+      {
+        "width": 1024,
+        "height": 1024,
+        "sha256": "700e96f58ec958099aea9060b3adcce7194d562243ffcc8771542a1d89ed15b3"
+      }
+    ],
+    "bounds": {
+      "min": [
+        -0.13310325145721438,
+        0,
+        -0.04563992284238338
+      ],
+      "max": [
+        0.13310325145721438,
+        0.3727691173553467,
+        0.04563992284238338
+      ]
+    },
+    "geometryHash": "e327ed400fe9ab38e26338549a8bde45ca7b0b332f246949931a682336f0daf1",
+    "variants": [
+      "Clean",
+      "Muddy"
+    ],
+    "fitProfile": {
+      "version": 1,
+      "anchors": {
+        "heel": [
+          -0.13310326635837555,
+          0,
+          0
+        ],
+        "toe": [
+          0.13310326635837555,
+          0,
+          0
+        ],
+        "sole": [
+          0,
+          0,
+          0
+        ],
+        "ankleOpening": [
+          -0.0689999982714653,
+          0.35499998927116394,
+          0
+        ]
+      },
+      "occlusion": {
+        "radius": [
+          0.039,
+          0.029
+        ],
+        "bottom": 0.055,
+        "top": 0.58
+      }
+    }
+  }
+]

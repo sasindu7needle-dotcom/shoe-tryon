@@ -124,6 +124,15 @@ export function ensureIndexedGeometry(THREE, object) {
     });
 }
 
+/** Versioned scene extras, in the model scene's coordinates (metres). */
+export function readFitProfile(model) {
+    const profile = model.userData.tryOnFit;
+    if (profile?.version !== 1) return null;
+    const point = (value) => Array.isArray(value) && value.length === 3 && value.every(Number.isFinite);
+    if (!['heel', 'toe', 'sole', 'ankleOpening'].every(key => point(profile.anchors?.[key]))) return null;
+    return profile;
+}
+
 /**
  * Wrap `model` in groups that place it on the tracked foot.
  * Returns the root group to hand to HandTrackerThreeHelper.add_threeObject().
@@ -145,7 +154,29 @@ export function fitShoe(THREE, model, calibration) {
         throw new Error('The model has no visible geometry.');
     }
     const size = bounds.getSize(new THREE.Vector3());
-    const scale = (FOOT_FRAME.length / size.y) * cal.scale;
+    let length = size.y;
+    let heel = bounds.min.y;
+    let sole = bounds.min.z;
+    let center = (bounds.min.x + bounds.max.x) / 2;
+    const profile = readFitProfile(model);
+    if (profile) {
+        const toFoot = new THREE.Matrix4().multiplyMatrices(mirrored.matrix, oriented.matrix);
+        model.updateMatrix();
+        toFoot.multiply(model.matrix);
+        const anchor = (name) => new THREE.Vector3().fromArray(profile.anchors[name]).applyMatrix4(toFoot);
+        const heelPoint = anchor('heel');
+        const toePoint = anchor('toe');
+        // An admin can still rotate a legacy upload. If authored axes no longer
+        // describe a forward length, fall back to the established bounds fit.
+        if (toePoint.y - heelPoint.y > 1e-6) {
+            length = toePoint.y - heelPoint.y;
+            heel = heelPoint.y;
+            sole = anchor('sole').z;
+            center = anchor('ankleOpening').x;
+        }
+    }
+    if (!Number.isFinite(length) || length <= 1e-6) throw new Error('The model has no usable shoe length.');
+    const scale = (FOOT_FRAME.length / length) * cal.scale;
 
     // Rotations pivot around the middle of the sole rather than the tracker origin.
     const pivot = new THREE.Vector3(FOOT_FRAME.centerX, FOOT_FRAME.heelY + FOOT_FRAME.length / 2, FOOT_FRAME.soleZ);
@@ -154,9 +185,9 @@ export function fitShoe(THREE, model, calibration) {
     fitted.scale.setScalar(scale);
     fitted.position
         .set(
-            FOOT_FRAME.centerX - (scale * (bounds.min.x + bounds.max.x)) / 2,
-            FOOT_FRAME.heelY - scale * bounds.min.y,
-            FOOT_FRAME.soleZ - scale * bounds.min.z,
+            FOOT_FRAME.centerX - scale * center,
+            FOOT_FRAME.heelY - scale * heel,
+            FOOT_FRAME.soleZ - scale * sole,
         )
         .sub(pivot);
     fitted.add(mirrored);
@@ -170,8 +201,34 @@ export function fitShoe(THREE, model, calibration) {
     root.updateMatrixWorld(true);
 
     root.userData.footprint = { length: size.y * scale, width: size.x * scale };
+    // Store the complete transform so the mask receives the same calibration,
+    // including mirror, scale, offset and rotation, as the visible shoe.
+    root.userData.modelToFoot = model.matrixWorld.toArray();
+    root.userData.tryOnFit = profile;
 
     return root;
+}
+
+/** A calibrated depth mask, or the demo mask for uploads without a profile. */
+export function createShoeOccluders(THREE, fitted, generic) {
+    const profile = fitted.userData.tryOnFit;
+    const mask = profile?.occlusion;
+    if (!mask || !Array.isArray(mask.radius) || mask.radius.length !== 2 ||
+        !mask.radius.every(value => Number.isFinite(value) && value > 0 && value < 0.2) ||
+        !Number.isFinite(mask.bottom) || !Number.isFinite(mask.top) ||
+        mask.top <= mask.bottom || mask.top - mask.bottom > 1) {
+        const fallback = generic.clone();
+        fallback.geometry = generic.geometry.clone();
+        return [placeOccluder(fallback)];
+    }
+    const opening = profile.anchors.ankleOpening;
+    const geometry = new THREE.CylinderGeometry(1, 1, mask.top - mask.bottom, 24, 1, true);
+    geometry.scale(mask.radius[0], 1, mask.radius[1]);
+    geometry.translate(opening[0], (mask.top + mask.bottom) / 2, opening[2]);
+    geometry.applyMatrix4(new THREE.Matrix4().fromArray(fitted.userData.modelToFoot));
+    const occluder = new THREE.Mesh(geometry);
+    occluder.name = 'shoeAnkleOccluder';
+    return [occluder];
 }
 
 /** Apply the demo transform to the occluder mesh loaded from occluder.glb. */

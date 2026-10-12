@@ -21,6 +21,8 @@ database/database.sqlite
 
 # Originals for the sample models; only the built GLBs in public/models ship.
 resources/models/source
+resources/models/optimized
+storage/app/model-build
 
 # Superseded directories kept in the working tree; never ship them.
 public/vendor/webarhand

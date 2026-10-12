@@ -34,6 +34,8 @@ It shows, every frame:
 | `DETECTED` / `no` | Whether the score passed the detection threshold. |
 | `pose ok` / `POSE FAILED` | Whether the 3D pose solved. Detected but failing here points at the field of view. |
 | `video` / `canvas` | Capture resolution versus render resolution. |
+| `acquiring` / `tracking` / `lost` | Independent pose-filter state for each foot. Acquiring requires consecutive valid observations; missing or rejected poses are hidden. |
+| `delta` | Translation in tracker units and rotation in degrees before pose filtering. This is a diagnostic, not measured foot registration error. |
 
 `Draw landmarks` overlays the nine tracked points, which is the quickest way to
 see whether the network is finding feet at all or locking onto something else.
@@ -62,6 +64,12 @@ TRYON_DETECTION_THRESHOLD=0.7
 **3. Stabiliser** — `beta` trades smoothness for responsiveness (lower is
 smoother but lags), `min cut-off` sets the floor. Only worth touching if the fit
 is right but jittery.
+
+An additional time-based pose filter rejects isolated jumps and smooths position
+and orientation. The overlay distinguishes a successful solve from acquisition
+of a visible lock. A gap of 150 ms resets filter history. Source FOV now maps
+through the video's cover crop using focal lengths; retain the source FOV setting
+when changing orientation rather than manually compensating for portrait mode.
 
 **4. A different network** — upstream ships several. Fetch them and switch in
 the overlay's dropdown:

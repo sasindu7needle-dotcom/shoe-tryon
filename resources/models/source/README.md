@@ -23,5 +23,9 @@ metres with the sole on y=0, resizes textures to 1024 px WebP, welds geometry,
 turns the boot's clean and dirty pairs into `KHR_materials_variants` colourways,
 and makes the canvas sneaker's baked emissive lighting render correctly.
 
+The final build also embeds Blender-authored fit anchors and ankle-mask profiles
+from `../optimized`. See `../optimized/README.md` for the reproducible Blender
+workflow and `docs/SHOE-FIT-RESULTS.md` for validation and phone-test status.
+
 These are samples, not a catalogue: replace them with your own product scans or
 models before launching.

@@ -18,7 +18,8 @@ import path from 'node:path';
 import sharp from 'sharp';
 
 const SOURCE_DIR = 'resources/models/source';
-const OUTPUT_DIR = 'public/models/samples';
+const staging = process.argv.includes('--stage');
+const OUTPUT_DIR = staging ? 'storage/app/model-build/input' : 'public/models/samples';
 const MAX_TEXTURE_SIZE = 1024;
 
 // Rotation from the WebAR.rocks foot frame (x right, y toes, z up):
@@ -149,6 +150,10 @@ for (const sample of samples) {
     sample.prepare?.(document);
 
     const bounds = normalizeTransform(document, sample);
+    if (!staging) {
+        const profile = JSON.parse(await fs.readFile(`resources/models/optimized/${sample.slug}.fit.json`, 'utf8'));
+        document.getRoot().getDefaultScene().setExtras({ tryOnFit: profile });
+    }
     const { length, height, width } = assertShoeProportions(sample.slug, bounds);
 
     await document.transform(

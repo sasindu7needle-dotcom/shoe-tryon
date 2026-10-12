@@ -162,6 +162,10 @@ export function createDebugPanel({ settings, networks, onChange }) {
                     `foot ${index}: score ${formatNumber(foot.score)} ${foot.detected ? 'DETECTED' : 'no'}` +
                         `${foot.detected ? (foot.solved ? ' pose ok' : ' POSE FAILED') : ''}`,
                 );
+                if (foot.lock) {
+                    lines.push(`  ${foot.lock.status}${foot.lock.reason ? ' / ' + foot.lock.reason : ''}` +
+                        ` delta ${formatNumber(foot.lock.translationError, 3)} / ${formatNumber(foot.lock.rotationError, 1)} deg`);
+                }
             });
             if (!feet.length) {
                 lines.push('no feet reported');

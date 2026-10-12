@@ -9,6 +9,7 @@ import * as THREE from 'three';
 import {
     computeBounds,
     createCalfOccluder,
+    createShoeOccluders,
     ensureIndexedGeometry,
     fitShoe,
     FOOT_FRAME,
@@ -35,6 +36,49 @@ test('calibration defaults are filled in and axes validated', () => {
 
     assert.throws(() => normalizeCalibration({ forwardAxis: '+y', upAxis: '-y' }), /perpendicular/);
     assert.throws(() => normalizeCalibration({ forwardAxis: 'up' }), /Unknown axis/);
+});
+
+function profiledModel() {
+    const model = boxModel();
+    model.userData.tryOnFit = {
+        version: 1,
+        anchors: { heel: [0.01, 0, 0.01], toe: [0.27, 0, 0.01], sole: [0, 0.005, 0], ankleOpening: [0.06, 0.08, 0.01] },
+        occlusion: { radius: [0.025, 0.02], bottom: 0.05, top: 0.3 },
+    };
+    return model;
+}
+
+test('authored anchors control the fit even when geometry extends beyond them', () => {
+    const model = profiledModel();
+    const fitted = fitShoe(THREE, model, { forwardAxis: '+x' });
+    const point = (name) => new THREE.Vector3().fromArray(model.userData.tryOnFit.anchors[name]).applyMatrix4(model.matrixWorld);
+    assert.ok(Math.abs(point('heel').y - FOOT_FRAME.heelY) < 1e-6);
+    assert.ok(Math.abs(point('toe').y - point('heel').y - FOOT_FRAME.length) < 1e-6);
+    assert.ok(Math.abs(point('sole').z - FOOT_FRAME.soleZ) < 1e-6);
+    assert.ok(Math.abs(point('ankleOpening').x - FOOT_FRAME.centerX) < 1e-6);
+    assert.equal(fitted.userData.tryOnFit.version, 1);
+});
+
+test('authored masks follow the same mirrored and calibrated model transform', () => {
+    const model = profiledModel();
+    const fitted = fitShoe(THREE, model, { forwardAxis: '+x', mirror: true, scale: 1.1, offsetCm: [2, 1, 3], rotationDeg: [5, 0, 15] });
+    const [mask] = createShoeOccluders(THREE, fitted);
+    const expected = new THREE.Vector3(0.06, 0.175, 0.01).applyMatrix4(model.matrixWorld);
+    const center = computeBounds(THREE, mask).getCenter(new THREE.Vector3());
+    assert.ok(center.distanceTo(expected) < 1e-6);
+    assert.ok(mask.geometry.index);
+});
+
+test('malformed profiles use the legacy fit and generic mask without mutating the template', () => {
+    const model = boxModel();
+    model.userData.tryOnFit = { version: 1, anchors: { heel: [NaN, 0, 0] } };
+    const fitted = fitShoe(THREE, model, { forwardAxis: '+x' });
+    assert.equal(fitted.userData.tryOnFit, null);
+    const generic = new THREE.Mesh(new THREE.BoxGeometry());
+    const [mask] = createShoeOccluders(THREE, fitted, generic);
+    assert.notEqual(mask.geometry, generic.geometry);
+    assert.equal(generic.scale.x, 1);
+    assert.equal(mask.scale.x, 0.95);
 });
 
 test('the forward axis becomes +Y and the up axis +Z in the foot frame', () => {
