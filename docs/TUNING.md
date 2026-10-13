@@ -97,3 +97,24 @@ lines. Put them in `.env` and restart to make them the default for everyone.
   model problem. Use the admin fit editor (see the `shoe-model-onboarding` skill).
 - **Nothing detected at any threshold** — framing, light, or the feet being out
   of frame. Check the landmarks overlay before blaming settings.
+
+## Check the new shoe profiles on the same phone
+
+Use the updated models with asset version `3`. Keep the same camera, lighting,
+framing and FOV for the first comparison. Capture each shoe with both feet still,
+toes turned inward/outward, and the phone looking straight down and obliquely.
+Include a bare-foot reference from the same position and a short motion clip.
+
+For the ballet flat, check that skin is visible through the opening up to the
+vamp without losing the rim. For the runner, check heel seating, toe coverage
+and both sides of the collar. For the boot, check the cuff around the leg and
+that the shaft stays intact; ankle bending remains limited by foot-only tracking.
+Compare the live preview and downloaded snapshot, then check loss/reacquisition,
+switching products, and FPS in debug mode.
+
+If every shoe shares the same tilt or offset, adjust the FOV in the overlay
+before changing individual shoe calibration. If only one shoe is wrong, use its
+admin fit controls or edit its Blender fit markers. Record the device/browser,
+selected FOV and view with fresh captures so further tuning has a repeatable
+reference. These checks are pending; automated geometry/render checks do not
+establish real-world foot registration accuracy.

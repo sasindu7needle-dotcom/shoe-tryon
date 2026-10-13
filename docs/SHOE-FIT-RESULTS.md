@@ -7,19 +7,24 @@ scene was kept separate from the new `ShoeFit-*` scenes. All models were already
 within the performance budgets, and inspection found no loose/zero-area geometry
 to remove. Decimation was deliberately avoided to preserve silhouette and detail.
 
-Each delivered GLB now has version 1 `scene.extras.tryOnFit`: heel, toe, sole and
-ankle-opening anchors in normalized glTF metres, plus an elliptical ankle mask.
+The runner, ballet flat and rain boot now have version 2
+`scene.extras.tryOnFit`: heel, toe, sole and ankle-opening anchors in normalized
+glTF metres, plus capped masks built from ordered elliptical cross-sections.
+The canvas sneaker retains its version 1 elliptical ankle mask.
 The runtime fits anchors first, then applies the existing admin calibration.
 Unprofiled or malformed uploads use the original bounding-box fit and generic
-mask. Boot masks extend through the calf; other masks use their own openings.
+mask. Boot masks begin inside the cuff and extend above it, preserving the lower
+shaft. The flat mask follows the long instep opening and narrows into the ankle;
+the runner mask follows its collar. Corrected heel/toe anchors avoid using the
+boot shaft's rear extent or the runner's outsole overhang as foot length.
 These are authored approximations, not measured shopper-specific leg silhouettes.
 
 | Model | Triangles (before / after) | Bytes before | Bytes after |
 | --- | ---: | ---: | ---: |
-| Street runner | 22,700 / 22,700 | 979,696 | 980,004 |
+| Street runner | 22,700 / 22,700 | 979,696 | 980,508 |
 | Canvas sneaker | 8,720 / 8,720 | 409,708 | 409,960 |
-| Ballet flat | 12,800 / 12,800 | 385,740 | 385,964 |
-| Rain boot | 14,032 / 14,032 | 466,712 | 466,964 |
+| Ballet flat | 12,800 / 12,800 | 385,740 | 386,688 |
+| Rain boot | 14,032 / 14,032 | 466,712 | 467,376 |
 
 The geometry and texture SHA-256 hashes, material counts, and variant names match
 the baseline. Textures remain at most 1024 px; meshes remain indexed with floating
@@ -43,12 +48,27 @@ The attached floor shadow is removed because there is no measured floor plane.
 
 `npm test` covers the fit math, metadata fallback, calibrated masks, filtering,
 invalid poses, jumps, reacquisition, independent feet, and 30/60 FPS behavior.
-Tests execute the vendored r131 GLTF loader and tracker helper, including material
+All 31 JavaScript tests pass. Tests execute the vendored r131 GLTF loader and
+tracker helper, including material
 variant switching, chirality resets, canvas clearing and portrait/landscape
 projection. Browser image decoding is stubbed in the Node loader test; image
 dimensions and decoding are checked separately with Sharp. This is not GPU or
-live-camera validation. Synthetic stationary-noise tests verify reduced noise;
+live-camera validation. Version 2 tests also check closed/indexed mask topology,
+mirrored and calibrated sections, invalid-profile fallback, and rays through real
+model openings: masks reveal the interiors while preserving toe uppers and the
+lower boot shaft. Synthetic stationary-noise tests verify reduced noise;
 they do not establish real-world tracking accuracy.
+
+Headless Chrome also rendered twelve before/after views using the production r131
+GLTF loader, lighting and fitting code. All views rendered without reported
+errors. The new masks add 256 triangles for the runner/boot and 320 for the flat;
+each shoe plus its mask still uses two draw calls. This is a desktop software
+rendering check, not a phone FPS measurement.
+
+![Synthetic before/after rendering check](assets/shoe-fit-before-after.png)
+
+Tan represents the camera layer; the comparison demonstrates the revealed
+openings and preserved uppers. It contains no live foot or tracking measurements.
 
 The production build passed. PHP configuration syntax passed, but the installed
 Composer dependencies omit the development test runner: `php artisan test`
@@ -86,7 +106,7 @@ Original source models are untouched. To compare without authored metadata, run
 to `storage/app/model-build/input`. Full runtime rollback uses the previous
 commit's helper, JS, and sample GLBs together, followed by an asset-version bump.
 
-The default asset version is now `2`. Existing installations overriding
+The default asset version is now `3`. Existing installations overriding
 `TRYON_ASSET_VERSION` must change that value too and refresh their config cache
 when deploying. Nothing was deployed and no database records were changed.
 

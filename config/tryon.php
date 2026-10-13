@@ -44,7 +44,7 @@ return [
     |
     */
 
-    'asset_version' => env('TRYON_ASSET_VERSION', '2'),
+    'asset_version' => env('TRYON_ASSET_VERSION', '3'),
 
     'max_model_upload_kb' => (int) env('TRYON_MAX_MODEL_UPLOAD_KB', 25 * 1024),
 

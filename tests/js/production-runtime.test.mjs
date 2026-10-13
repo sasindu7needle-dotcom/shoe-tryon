@@ -50,15 +50,50 @@ test('all shipped GLBs load, fit, mirror and switch variants with the production
         });
         const data = buffer.buffer.slice(buffer.byteOffset, buffer.byteOffset + buffer.byteLength);
         const gltf = await new Promise((resolve, reject) => loader.parse(data, '', resolve, reject));
-        assert.equal(gltf.scene.userData.tryOnFit.version, 1);
+        assert.equal(gltf.scene.userData.tryOnFit.version, original.slug === 'canvas-sneaker' ? 1 : 2);
         assert.deepEqual([...listVariants(gltf)], original.variants);
         for (const variant of listVariants(gltf)) assert.equal(await applyVariant(gltf, gltf.scene, variant), variant);
         ensureIndexedGeometry(THREE, gltf.scene);
         const shoe = fitShoe(THREE, gltf.scene, { forwardAxis: '+x' });
         const heel = new THREE.Vector3().fromArray(gltf.scene.userData.tryOnFit.anchors.heel).applyMatrix4(gltf.scene.matrixWorld);
         assert.ok(Math.abs(heel.y - FOOT_FRAME.heelY) < 1e-6);
-        const [mask] = createShoeOccluders(THREE, shoe);
-        assert.ok(mask.geometry.attributes.position.array.every(Number.isFinite));
+        const masks = createShoeOccluders(THREE, shoe);
+        assert.ok(masks.length > 0);
+        for (const mask of masks) {
+            assert.ok(mask.geometry.index);
+            assert.ok(mask.geometry.attributes.position.array.every(Number.isFinite));
+            mask.material = new THREE.MeshBasicMaterial({ side: THREE.DoubleSide });
+        }
+        if (original.slug !== 'canvas-sneaker') {
+            // Test actual authored masks against the loaded meshes, in production
+            // coordinates. Interiors must disappear; uppers must stay visible.
+            const matrix = gltf.scene.matrixWorld;
+            const hitsAt = (origin, direction) => {
+                const ray = new THREE.Raycaster(new THREE.Vector3(...origin).applyMatrix4(matrix),
+                    new THREE.Vector3(...direction).transformDirection(matrix));
+                return { shoe: ray.intersectObject(shoe, true), masks: ray.intersectObjects(masks) };
+            };
+            const openingX = { 'street-runner': -0.075, 'ballet-flat': 0.02, 'rain-boot': -0.065 }[original.slug];
+            const interior = hitsAt([openingX, 1, 0], [0, -1, 0]);
+            assert.ok(interior.shoe.length > 0, `${original.slug}: test ray hits interior`);
+            assert.ok(interior.masks.length > 0, `${original.slug}: opening has a mask`);
+            assert.ok(interior.masks[0].distance < interior.shoe[0].distance,
+                `${original.slug}: mask reveals camera ahead of the insole`);
+            if (original.slug === 'ballet-flat') {
+                const instep = hitsAt([0.06, 1, 0], [0, -1, 0]);
+                assert.ok(instep.masks.length > 0 && instep.shoe.length > 0 &&
+                    instep.masks[0].distance < instep.shoe[0].distance, 'flat reveals instep up to the vamp');
+            }
+            const toe = hitsAt([0.10, 1, 0], [0, -1, 0]);
+            assert.ok(toe.shoe.length > 0);
+            assert.ok(!toe.masks.length || toe.shoe[0].distance < toe.masks[0].distance,
+                `${original.slug}: toe upper is preserved`);
+            if (original.slug === 'rain-boot') {
+                const shaft = hitsAt([0.20, 0.20, 0], [-1, 0, 0]);
+                assert.ok(shaft.shoe.length > 0);
+                assert.equal(shaft.masks.length, 0, 'mask starts at cuff and cannot slice the lower shaft');
+            }
+        }
         // Reflect geometry just as the production helper does for left feet.
         shoe.traverse(child => {
             if (!child.isMesh) return;
@@ -138,15 +173,27 @@ test('the actual tracker helper hides failed poses, clears lost feet, and resets
     assert.equal(parents[0].userData.footLock.status, 'lost');
     const model = new THREE.Mesh(new THREE.BoxGeometry(0.28, 0.1, 0.09));
     model.geometry.translate(0.01, 0.05, 0.02);
+    model.userData.tryOnFit = {
+        version: 2,
+        anchors: { heel: [-0.13, 0, 0.02], toe: [0.15, 0, 0.02], sole: [0, 0, 0], ankleOpening: [-0.08, 0.08, 0.02] },
+        occlusion: { volumes: [{ name: 'ankle', sections: [
+            { center: [-0.08, 0.06, 0.02], radius: [0.028, 0.025] },
+            { center: [-0.09, 0.25, 0.02], radius: [0.030, 0.027] },
+        ] }] },
+    };
     const shoe = fitShoe(THREE, model, { forwardAxis: '+x', offsetCm: [2, 0, 0] });
     context.helper.add_threeObject(shoe);
     const right = computeBounds(THREE, state.three.trackersRight[0]);
     const left = computeBounds(THREE, state.three.trackersLeft[0]);
     assert.ok(Math.abs(left.min.x + right.max.x) < 1e-6);
     assert.ok(Math.abs(left.max.x + right.min.x) < 1e-6);
-    const mask = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.1, 1));
+    const [mask] = createShoeOccluders(THREE, shoe);
     context.helper.add_threeOccluder(mask);
     assert.equal(state.three.trackersLeft[0].children.length, 2);
+    const rightMask = computeBounds(THREE, state.three.trackersRight[0].children[1]);
+    const leftMask = computeBounds(THREE, state.three.trackersLeft[0].children[1]);
+    assert.ok(Math.abs(leftMask.min.x + rightMask.max.x) < 1e-6, 'helper mirrors authored masks with the shoe');
+    assert.ok(Math.abs(leftMask.max.x + rightMask.min.x) < 1e-6);
     context.helper.clear_threeObjects(true);
     assert.equal(state.three.trackersLeft[0].children.length, 0);
     assert.equal(state.three.trackersRight[0].children.length, 0, 'product switch also detaches its mask');

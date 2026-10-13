@@ -127,7 +127,7 @@ export function ensureIndexedGeometry(THREE, object) {
 /** Versioned scene extras, in the model scene's coordinates (metres). */
 export function readFitProfile(model) {
     const profile = model.userData.tryOnFit;
-    if (profile?.version !== 1) return null;
+    if (![1, 2].includes(profile?.version)) return null;
     const point = (value) => Array.isArray(value) && value.length === 3 && value.every(Number.isFinite);
     if (!['heel', 'toe', 'sole', 'ankleOpening'].every(key => point(profile.anchors?.[key]))) return null;
     return profile;
@@ -209,14 +209,73 @@ export function fitShoe(THREE, model, calibration) {
     return root;
 }
 
+/** Bounded, ordered cross-sections in glTF model coordinates (Y-up metres). */
+function validOcclusionVolumes(volumes) {
+    const point = value => Array.isArray(value) && value.length === 3 &&
+        value.every(number => Number.isFinite(number) && Math.abs(number) < 2);
+    return Array.isArray(volumes) && volumes.length > 0 && volumes.length <= 4 && volumes.every(volume => {
+        if (typeof volume?.name !== 'string' || !volume.name || volume.name.length > 64 ||
+            !Array.isArray(volume.sections) || volume.sections.length < 2 || volume.sections.length > 24) return false;
+        const sections = volume.sections;
+        return sections.every((section, i) => point(section?.center) &&
+            Array.isArray(section.radius) && section.radius.length === 2 &&
+            section.radius.every(radius => Number.isFinite(radius) && radius > 0 && radius < 0.2) &&
+            (i === 0 || section.center[1] - sections[i - 1].center[1] > 1e-5)) &&
+            sections.at(-1).center[1] - sections[0].center[1] <= 1;
+    });
+}
+
+/** A closed loft reveals the camera through the opening even from above. */
+function createVolumeGeometry(THREE, sections) {
+    const segments = 32;
+    const vertices = [];
+    const indices = [];
+    for (const { center, radius } of sections) {
+        for (let i = 0; i < segments; i++) {
+            const angle = i * 2 * Math.PI / segments;
+            vertices.push(center[0] + radius[0] * Math.cos(angle), center[1], center[2] + radius[1] * Math.sin(angle));
+        }
+    }
+    for (let ring = 0; ring < sections.length - 1; ring++) {
+        for (let i = 0; i < segments; i++) {
+            const a = ring * segments + i;
+            const b = ring * segments + (i + 1) % segments;
+            indices.push(a, a + segments, b, b, a + segments, b + segments);
+        }
+    }
+    const bottom = vertices.length / 3;
+    vertices.push(...sections[0].center, ...sections.at(-1).center);
+    const lastRing = (sections.length - 1) * segments;
+    for (let i = 0; i < segments; i++) {
+        const next = (i + 1) % segments;
+        indices.push(bottom, i, next, bottom + 1, lastRing + next, lastRing + i);
+    }
+    const geometry = new THREE.BufferGeometry();
+    geometry.setAttribute('position', new THREE.Float32BufferAttribute(vertices, 3));
+    geometry.setIndex(indices);
+    geometry.computeVertexNormals();
+    return geometry;
+}
+
 /** A calibrated depth mask, or the demo mask for uploads without a profile. */
 export function createShoeOccluders(THREE, fitted, generic) {
     const profile = fitted.userData.tryOnFit;
+    const transform = new THREE.Matrix4().fromArray(fitted.userData.modelToFoot);
+    if (profile?.version === 2 && validOcclusionVolumes(profile.occlusion?.volumes)) {
+        return profile.occlusion.volumes.map(volume => {
+            const geometry = createVolumeGeometry(THREE, volume.sections);
+            geometry.applyMatrix4(transform);
+            const occluder = new THREE.Mesh(geometry);
+            occluder.name = `shoeOccluder_${volume.name}`;
+            return occluder;
+        });
+    }
     const mask = profile?.occlusion;
-    if (!mask || !Array.isArray(mask.radius) || mask.radius.length !== 2 ||
+    if (profile?.version !== 1 || !mask || !Array.isArray(mask.radius) || mask.radius.length !== 2 ||
         !mask.radius.every(value => Number.isFinite(value) && value > 0 && value < 0.2) ||
         !Number.isFinite(mask.bottom) || !Number.isFinite(mask.top) ||
         mask.top <= mask.bottom || mask.top - mask.bottom > 1) {
+        if (!generic?.geometry) return [];
         const fallback = generic.clone();
         fallback.geometry = generic.geometry.clone();
         return [placeOccluder(fallback)];
@@ -225,7 +284,7 @@ export function createShoeOccluders(THREE, fitted, generic) {
     const geometry = new THREE.CylinderGeometry(1, 1, mask.top - mask.bottom, 24, 1, true);
     geometry.scale(mask.radius[0], 1, mask.radius[1]);
     geometry.translate(opening[0], (mask.top + mask.bottom) / 2, opening[2]);
-    geometry.applyMatrix4(new THREE.Matrix4().fromArray(fitted.userData.modelToFoot));
+    geometry.applyMatrix4(transform);
     const occluder = new THREE.Mesh(geometry);
     occluder.name = 'shoeAnkleOccluder';
     return [occluder];
