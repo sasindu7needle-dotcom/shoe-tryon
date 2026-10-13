@@ -34,7 +34,6 @@ const HandTrackerThreeHelper = (function(){
     cameraZoom: 1,
     posePointLabels: [],
     poseFilter: null,
-    poseSolver: null,
     isPostProcessing: false,
     taaLevel: 0,
 
@@ -416,7 +415,6 @@ const HandTrackerThreeHelper = (function(){
       const stabilizer = _landmarksStabilizers[i];
       const poseFilter = _poseFilters[i];
       trackerParent.userData.poseSolved = false;
-      trackerParent.userData.poseQuality = null;
       
       if (detectState.isDetected) {
         if (_neuralNetworkIndices[i] !== detectState.neuralNetworkInd || _chiralities[i] !== detectState.isRightHand) {
@@ -424,18 +422,6 @@ const HandTrackerThreeHelper = (function(){
           if (poseFilter !== null) poseFilter.reset();
           _neuralNetworkIndices[i] = detectState.neuralNetworkInd;
           _chiralities[i] = detectState.isRightHand;
-        }
-
-        // Never let a non-finite observation enter the stabilizer history.
-        if (!detectState.landmarks || !_poseEstimation.poseLandmarksIndices.every(function(index){
-          const point = detectState.landmarks[index];
-          return point && Number.isFinite(point[0]) && Number.isFinite(point[1]);
-        })) {
-          stabilizer.reset();
-          trackerParent.visible = false;
-          trackerParent.userData.poseQuality = { accepted: false, reason: 'landmarks' };
-          if (poseFilter !== null && poseFilter.miss) poseFilter.miss('landmarks');
-          continue;
         }
         
         if (_spec.debugDisplayLandmarks){
@@ -524,14 +510,6 @@ const HandTrackerThreeHelper = (function(){
     const w2 = that.get_viewWidth() / 2.0;
     const h2 = that.get_viewHeight() / 2.0;
 
-    if (!_poseEstimation.poseLandmarksIndices.every(function(index){
-      const point = landmarks[index];
-      return point && point.length >= 2 && Number.isFinite(point[0]) && Number.isFinite(point[1]);
-    })) {
-      if (poseFilter !== null && poseFilter.miss) poseFilter.miss('landmarks');
-      return false;
-    }
-
     _poseEstimation.poseLandmarksIndices.forEach(function(ind, i){
       const imgPointPx = imgPointsPx[i];
       imgPointPx[0] = - ( 1.0 / _spec.cameraZoom ) * landmarks[ind][0] * w2,  // X in pixels
@@ -562,9 +540,7 @@ const HandTrackerThreeHelper = (function(){
       rotationDirectionSrc: _spec.poseRotationDirectionSrc,
       rotationDirectionDst: _spec.poseRotationDirectionDst
     }
-    const solve = _spec.poseSolver || WEBARROCKSHAND.compute_pose;
-    const solved = solve(objPoints.points, imgPointsPx, focals[0], focals[1], computePoseOptions);
-    _three.trackersParent[handIndex].userData.poseQuality = solved?.quality ?? null;
+    const solved = WEBARROCKSHAND.compute_pose(objPoints.points, imgPointsPx, focals[0], focals[1], computePoseOptions);
 
     const tracker = (isRightHand || !_spec.enableFlipObject) ? _three.trackersRight[handIndex] : _three.trackersLeft[handIndex];
     tracker.visible = true;
@@ -574,16 +550,15 @@ const HandTrackerThreeHelper = (function(){
     const trackerHidden = (tracker === _three.trackersRight[handIndex]) ? _three.trackersLeft[handIndex] : _three.trackersRight[handIndex];
     trackerHidden.visible = false;
   
-    if (!solved || solved.ok === false){
-      if (poseFilter !== null && poseFilter.miss) poseFilter.miss(solved?.quality?.reason || 'pose');
+    if (!solved){
+      if (poseFilter !== null && poseFilter.miss) poseFilter.miss('pose');
       return false;
     }
 
     // copy pose to THREE.js matrix:
     const m = _poseEstimation.matMov.elements;
     const r = solved.rotation, t = solved.translation;
-    if (t?.length !== 3 || r?.length !== 3 || !t.every(Number.isFinite) || t[2] <= 0 ||
-        !r.every(row => row?.length === 3 && row.every(Number.isFinite))){
+    if (!t.every(Number.isFinite) || !r.every(row => row.every(Number.isFinite))){
       if (poseFilter !== null && poseFilter.miss) poseFilter.miss('invalid');
       return false;
     }

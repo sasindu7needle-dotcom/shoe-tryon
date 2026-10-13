@@ -38,7 +38,6 @@ const ui = {
     snapshotDialog: $('#snapshot-dialog'),
     snapshotImage: $('#snapshot-image'),
     shareButton: $('[data-action="share"]'),
-    footMode: $('#foot-mode'),
 };
 
 const state = {
@@ -183,10 +182,6 @@ function onTrackerFrame(detectStates, validity) {
     const detections = Array.isArray(detectStates) ? detectStates : [detectStates];
     const valid = Array.isArray(validity) ? validity : [validity];
     setTracking(detections.some((detection, i) => detection.isDetected && valid[i]));
-    const tooSmall = state.three?.trackersParent.some(parent => parent.userData.poseQuality?.reason === 'too-small');
-    ui.hint.textContent = tooSmall
-        ? 'Move the camera closer while keeping your whole feet in view.'
-        : 'Place your feet flat and slightly apart. Keep toes and heels in view, with the camera above them and good light.';
 
     if (debugPanel) {
         reportDebugFrame(detections, valid);
@@ -194,11 +189,6 @@ function onTrackerFrame(detectStates, validity) {
 
     if (state.snapshotRequested) {
         state.snapshotRequested = false;
-        if (!state.tracking) {
-            clearTimeout(state.hintTimer);
-            ui.hint.hidden = false;
-            return;
-        }
         // Render now so both canvases hold the same frame, then copy them.
         state.three.renderer.render(state.three.scene, state.three.camera);
         composeSnapshot(ui.trackerCanvas, ui.sceneCanvas, {
@@ -227,7 +217,6 @@ function reportDebugFrame(detections, valid) {
             detected: Boolean(detection.isDetected),
             solved: Boolean(state.three.trackersParent[i].userData.poseSolved),
             lock: state.three.trackersParent[i].userData.footLock,
-            quality: state.three.trackersParent[i].userData.poseQuality,
         })),
         video: { width: ui.video.videoWidth, height: ui.video.videoHeight },
         canvas: { width: ui.trackerCanvas.width, height: ui.trackerCanvas.height },
@@ -525,8 +514,6 @@ async function start() {
     setProgress(0, 'Starting camera…');
 
     try {
-        const selectedNetwork = config.tracker.networks?.find(network => network.url === ui.footMode.value);
-        tuning.networkUrl = selectedNetwork?.url ?? config.tracker.neuralNetworkUrl;
         assertBrowserSupport();
         layout();
         if (demoVideo) {
@@ -539,7 +526,7 @@ async function start() {
         const label = 'Downloading foot tracking…';
         setProgress(0, label);
         const [network, occluder] = await Promise.all([
-            downloadNeuralNetwork(tuning.networkUrl, selectedNetwork?.bytes ?? config.tracker.neuralNetworkBytes, (fraction) => setProgress(fraction * 0.9, label)),
+            downloadNeuralNetwork(config.tracker.neuralNetworkUrl, config.tracker.neuralNetworkBytes, (fraction) => setProgress(fraction * 0.9, label)),
             loadGltf(THREE, config.tracker.occluderUrl),
             loadModel(state.product),
         ]);
@@ -609,15 +596,3 @@ window.addEventListener('pagehide', () => stopCamera(state.stream));
 window.addEventListener('pageshow', (event) => event.persisted && window.location.reload());
 
 setPhase('intro');
-
-// Keep model names out of the shopper controls; retain custom server defaults.
-for (const network of config.tracker.networks ?? []) {
-    const labels = { NN_BAREFOOT_3: 'Bare feet', NN_FOOT_31: 'Socks or shoes' };
-    if (!labels[network.name] && network.url !== config.tracker.neuralNetworkUrl) continue;
-    const option = document.createElement('option');
-    option.value = network.url;
-    option.textContent = labels[network.name] ?? 'Store default';
-    option.selected = network.url === config.tracker.neuralNetworkUrl;
-    ui.footMode.append(option);
-}
-ui.footMode.closest('label').hidden = ui.footMode.options.length < 2;

@@ -2,7 +2,6 @@ import { NodeIO } from '@gltf-transform/core';
 import { ALL_EXTENSIONS } from '@gltf-transform/extensions';
 import { getBounds } from '@gltf-transform/functions';
 import { createHash } from 'node:crypto';
-import { brotliCompressSync, constants, gzipSync } from 'node:zlib';
 import fs from 'node:fs/promises';
 import sharp from 'sharp';
 
@@ -10,7 +9,6 @@ const io = new NodeIO().registerExtensions(ALL_EXTENSIONS);
 const report = [];
 for (const slug of ['street-runner', 'canvas-sneaker', 'ballet-flat', 'rain-boot']) {
     const file = `public/models/samples/${slug}.glb`;
-    const bytes = await fs.readFile(file);
     const document = await io.read(file);
     const root = document.getRoot();
     const geometry = createHash('sha256');
@@ -30,10 +28,7 @@ for (const slug of ['street-runner', 'canvas-sneaker', 'ballet-flat', 'rain-boot
         return { width, height, sha256: createHash('sha256').update(data).digest('hex') };
     }));
     report.push({
-        slug, bytes: bytes.length,
-        brotliBytes: brotliCompressSync(bytes, { params: { [constants.BROTLI_PARAM_QUALITY]: 11 } }).length,
-        gzipBytes: gzipSync(bytes, { level: 9 }).length,
-        triangles,
+        slug, bytes: (await fs.stat(file)).size, triangles,
         materials: root.listMaterials().length, textures,
         bounds: getBounds(root.getDefaultScene()),
         geometryHash: geometry.digest('hex'),

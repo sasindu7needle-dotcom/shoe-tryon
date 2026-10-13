@@ -36,7 +36,6 @@ It shows, every frame:
 | `video` / `canvas` | Capture resolution versus render resolution. |
 | `acquiring` / `tracking` / `lost` | Independent pose-filter state for each foot. Acquiring requires consecutive valid observations; missing or rejected poses are hidden. |
 | `delta` | Translation in tracker units and rotation in degrees before pose filtering. This is a diagnostic, not measured foot registration error. |
-| `fit`, `RMS`, `max` | Pose acceptance and landmark reprojection error as a percentage of the detected landmark span. Rejection reasons distinguish tiny feet, malformed landmarks and inconsistent poses. |
 
 `Draw landmarks` overlays the nine tracked points, which is the quickest way to
 see whether the network is finding feet at all or locking onto something else.
@@ -86,9 +85,8 @@ ship it instead:
 TRYON_NEURAL_NETWORK=vendor/webar-rocks/neural-nets/NN_FOOT_29.json
 ```
 
-`NN_BAREFOOT_3` is the default and is only 1.3 MB. The intro's "Trying on with"
-selector switches between bare feet and the larger `NN_FOOT_31` for socks or
-shoes. Existing `TRYON_NEURAL_NETWORK` overrides still select the store default.
+`NN_BAREFOOT_3` is only 1.3 MB and is worth a look if your shoppers try shoes on
+bare feet — a much faster first load, at the cost of socks and shoes.
 
 **Copy these settings** puts the current values on the clipboard as `.env`
 lines. Put them in `.env` and restart to make them the default for everyone.
@@ -102,7 +100,7 @@ lines. Put them in `.env` and restart to make them the default for everyone.
 
 ## Check the new shoe profiles on the same phone
 
-Use the updated models with asset version `4`. Keep the same camera, lighting,
+Use the updated models with asset version `3`. Keep the same camera, lighting,
 framing and FOV for the first comparison. Capture each shoe with both feet still,
 toes turned inward/outward, and the phone looking straight down and obliquely.
 Include a bare-foot reference from the same position and a short motion clip.

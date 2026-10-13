@@ -26,7 +26,7 @@ class TryOnPageTest extends TestCase
         $this->assertSame('street', $config['products'][0]['defaultVariant']);
         // assertEquals, not assertSame: JSON turns 0.0 into 0.
         $this->assertEquals($product->resolvedCalibration(), $config['products'][0]['calibration']);
-        $this->assertStringContainsString('NN_BAREFOOT_3.json', $config['tracker']['neuralNetworkUrl']);
+        $this->assertStringContainsString('NN_FOOT_31.json', $config['tracker']['neuralNetworkUrl']);
         $this->assertSame(2, $config['tracker']['maxFeet']);
         $this->assertSame(route('api.try-on-events.store'), $config['eventsUrl']);
     }

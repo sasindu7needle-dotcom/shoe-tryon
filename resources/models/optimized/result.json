@@ -2,8 +2,6 @@
   {
     "slug": "street-runner",
     "bytes": 980508,
-    "brotliBytes": 801327,
-    "gzipBytes": 859974,
     "triangles": 22700,
     "materials": 3,
     "textures": [
@@ -132,9 +130,7 @@
   },
   {
     "slug": "canvas-sneaker",
-    "bytes": 410384,
-    "brotliBytes": 309727,
-    "gzipBytes": 340151,
+    "bytes": 409960,
     "triangles": 8720,
     "materials": 2,
     "textures": [
@@ -164,7 +160,7 @@
     "geometryHash": "8fcb05e4ec6a3bb030625141a6374a6ac1d9bc7d61325a29503f4a6b6ad21785",
     "variants": [],
     "fitProfile": {
-      "version": 2,
+      "version": 1,
       "anchors": {
         "heel": [
           -0.14000000059604645,
@@ -188,65 +184,18 @@
         ]
       },
       "occlusion": {
-        "volumes": [
-          {
-            "name": "ankle",
-            "sections": [
-              {
-                "center": [
-                  -0.07999999821186066,
-                  0.04500000178813934,
-                  0
-                ],
-                "radius": [
-                  0.03999999910593033,
-                  0.026000000536441803
-                ]
-              },
-              {
-                "center": [
-                  -0.07500000298023224,
-                  0.06800000369548798,
-                  0
-                ],
-                "radius": [
-                  0.04399999976158142,
-                  0.028999999165534973
-                ]
-              },
-              {
-                "center": [
-                  -0.07599999755620956,
-                  0.10499999672174454,
-                  0
-                ],
-                "radius": [
-                  0.029999999329447746,
-                  0.026000000536441803
-                ]
-              },
-              {
-                "center": [
-                  -0.0860000029206276,
-                  0.28999999165534973,
-                  0
-                ],
-                "radius": [
-                  0.03200000151991844,
-                  0.029999999329447746
-                ]
-              }
-            ]
-          }
-        ]
+        "radius": [
+          0.029,
+          0.024
+        ],
+        "bottom": 0.045,
+        "top": 0.29
       }
     }
   },
   {
     "slug": "ballet-flat",
     "bytes": 386688,
-    "brotliBytes": 265950,
-    "gzipBytes": 313579,
     "triangles": 12800,
     "materials": 1,
     "textures": [
@@ -373,8 +322,6 @@
   {
     "slug": "rain-boot",
     "bytes": 467376,
-    "brotliBytes": 377261,
-    "gzipBytes": 418642,
     "triangles": 14032,
     "materials": 2,
     "textures": [

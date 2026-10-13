@@ -7,11 +7,10 @@ scene was kept separate from the new `ShoeFit-*` scenes. All models were already
 within the performance budgets, and inspection found no loose/zero-area geometry
 to remove. Decimation was deliberately avoided to preserve silhouette and detail.
 
-All four samples now have version 2
+The runner, ballet flat and rain boot now have version 2
 `scene.extras.tryOnFit`: heel, toe, sole and ankle-opening anchors in normalized
 glTF metres, plus capped masks built from ordered elliptical cross-sections.
-The canvas sneaker also has an authored collar mask and nine tracker reference
-guides in its Blender scene, matching the other samples.
+The canvas sneaker retains its version 1 elliptical ankle mask.
 The runtime fits anchors first, then applies the existing admin calibration.
 Unprofiled or malformed uploads use the original bounding-box fit and generic
 mask. Boot masks begin inside the cuff and extend above it, preserving the lower
@@ -20,40 +19,16 @@ the runner mask follows its collar. Corrected heel/toe anchors avoid using the
 boot shaft's rear extent or the runner's outsole overhang as foot length.
 These are authored approximations, not measured shopper-specific leg silhouettes.
 
-| Model | Triangles (before / after) | Bytes before | Bytes after | Brotli bytes |
-| --- | ---: | ---: | ---: | ---: |
-| Street runner | 22,700 / 22,700 | 979,696 | 980,508 | 801,327 |
-| Canvas sneaker | 8,720 / 8,720 | 409,708 | 410,384 | 309,727 |
-| Ballet flat | 12,800 / 12,800 | 385,740 | 386,688 | 265,950 |
-| Rain boot | 14,032 / 14,032 | 466,712 | 467,376 | 377,261 |
+| Model | Triangles (before / after) | Bytes before | Bytes after |
+| --- | ---: | ---: | ---: |
+| Street runner | 22,700 / 22,700 | 979,696 | 980,508 |
+| Canvas sneaker | 8,720 / 8,720 | 409,708 | 409,960 |
+| Ballet flat | 12,800 / 12,800 | 385,740 | 386,688 |
+| Rain boot | 14,032 / 14,032 | 466,712 | 467,376 |
 
 The geometry and texture SHA-256 hashes, material counts, and variant names match
 the baseline. Textures remain at most 1024 px; meshes remain indexed with floating
 point attributes. Machine-readable reports live in `resources/models/optimized`.
-
-The live Blender MCP validation is recorded in `blender-validation.json`: all
-four saved scenes match their geometry checksums and JSON profiles, have nine
-tracker guides, and contain no loose vertices or zero-area faces. Scenes must be
-evaluated before checking world-space geometry. Fit profiles and `.blend` files
-were re-exported through MCP, with the original Blender scene restored afterwards.
-
-`scripts/precompress.mjs` now includes GLB files. The four shoes transfer 18–31%
-fewer bytes with Brotli (490,691 bytes saved in total); gzip is also generated.
-Both formats were decompressed and compared byte-for-byte with the GLBs.
-The existing production Caddy configuration serves these copies automatically.
-This reduces download size; it does not reduce GPU triangle counts or prove FPS.
-
-The pose solver checks the native solver's success flag, rejects nonfinite and
-tiny landmark sets, and refines perspective reprojection error with bounded
-work. At most one drifting landmark may be excluded, using eight remaining
-observations and at most two additional native solves. Incorrect finite poses
-are hidden. The debug overlay reports reprojection error and rejection reasons.
-Foot-side detection no longer forces screen-space ordering, and rotations around
-the camera axis are allowed. These settings still need real-phone validation.
-
-Bare feet now use the smaller `NN_BAREFOOT_3` network by default. The intro offers
-"Bare feet" and "Socks or shoes" before starting; custom server defaults remain
-available. Snapshot requests during tracking loss show the positioning hint.
 
 The tracker now gates visibility on a finite, accepted pose; requires at least
 two observations spanning 32 ms to acquire; and hides every rejected/missing
@@ -73,9 +48,7 @@ The attached floor shadow is removed because there is no measured floor plane.
 
 `npm test` covers the fit math, metadata fallback, calibrated masks, filtering,
 invalid poses, jumps, reacquisition, independent feet, and 30/60 FPS behavior.
-All 37 JavaScript tests pass. Native PnP tests use both shipped foot networks,
-covering 48 combinations of mirrored feet, rotations and focal lengths. Tests
-execute the vendored r131 GLTF loader and
+All 31 JavaScript tests pass. Tests execute the vendored r131 GLTF loader and
 tracker helper, including material
 variant switching, chirality resets, canvas clearing and portrait/landscape
 projection. Browser image decoding is stubbed in the Node loader test; image
@@ -86,8 +59,7 @@ model openings: masks reveal the interiors while preserving toe uppers and the
 lower boot shaft. Synthetic stationary-noise tests verify reduced noise;
 they do not establish real-world tracking accuracy.
 
-The earlier implementation also rendered twelve before/after views in headless
-Chrome using the production r131
+Headless Chrome also rendered twelve before/after views using the production r131
 GLTF loader, lighting and fitting code. All views rendered without reported
 errors. The new masks add 256 triangles for the runner/boot and 320 for the flat;
 each shoe plus its mask still uses two draw calls. This is a desktop software
@@ -101,15 +73,13 @@ openings and preserved uppers. It contains no live foot or tracking measurements
 The production build passed. PHP configuration syntax passed, but the installed
 Composer dependencies omit the development test runner: `php artisan test`
 reports that the command is unavailable. No PHP feature-suite result is claimed.
-An additional Laravel bootstrap/Blade render smoke check passed for asset version
-4, both installed network options and their download sizes, and the intro control.
 
 ## Phone acceptance: not yet measured
 
 No reference phones or recorded test clips were available during implementation.
 Acquisition time, valid-pose coverage, visual registration error, device FPS and
 false-positive rate therefore have **no measured before/after result yet**.
-The 0.8 threshold, 33-degree source FOV and DPR cap are unchanged;
+The neural network, 0.8 threshold, 33-degree source FOV and DPR cap are unchanged;
 new tracking constants are initial defaults, pending this acceptance pass.
 
 On Android Chrome and iPhone Safari, record the phone/browser/camera and test bare
@@ -136,7 +106,7 @@ Original source models are untouched. To compare without authored metadata, run
 to `storage/app/model-build/input`. Full runtime rollback uses the previous
 commit's helper, JS, and sample GLBs together, followed by an asset-version bump.
 
-The default asset version is now `4`. Existing installations overriding
+The default asset version is now `3`. Existing installations overriding
 `TRYON_ASSET_VERSION` must change that value too and refresh their config cache
 when deploying. Nothing was deployed and no database records were changed.
 

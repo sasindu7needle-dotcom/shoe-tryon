@@ -25,12 +25,11 @@ engine files; both were replaced (see the cleanup note in the project root).
 
 ### How a pose becomes a shoe on a foot
 
-1. `NN_BAREFOOT_3` (default) or `NN_FOOT_31` (socks/shoes) detects each foot and returns nine landmarks (ankle ×4, heel ×2,
+1. `NN_FOOT_31` detects each foot and returns nine landmarks (ankle ×4, heel ×2,
    toe bases ×3).
 2. `HandTrackerThreeHelper` stabilises the landmarks (One-Euro filter) and solves
    a perspective-n-point pose against a reference foot model, producing a 3D
-   transform per foot. `foot-pose.js` validates and refines perspective
-   reprojection against these landmarks before the pose filter exposes a shoe.
+   transform per foot.
 3. The helper mirrors any object added to it for the left foot, so **one right
    shoe model covers both feet**.
 4. A leg/foot occluder writes depth only, hiding the parts of the shoe that the
@@ -82,13 +81,10 @@ the two never meet.
 
 ## Performance and cost
 
-- The default `NN_BAREFOOT_3` is about 1.3 MB; shoppers wearing socks or shoes
-  can select `NN_FOOT_31`, which is 19.6 MB of JSON → 9.7 MB brotli, pre-compressed at image build
+- `NN_FOOT_31` is 19.6 MB of JSON → 9.7 MB brotli, pre-compressed at image build
   and served with a one-year immutable cache. It is fetched with a real progress
   bar (the uncompressed size comes from the server, since compressed streams
   report the wrong total).
-- GLB models also receive lossless HTTP Brotli/gzip compression at image build;
-  the four samples are 18–31% smaller with Brotli, preserving runtime buffers.
 - Render resolution is capped (`TRYON_MAX_DPR`, default 1.5).
 - The camera stream is released when the tab is hidden.
 - Nothing per-request is expensive on the server: no ML, no image processing.

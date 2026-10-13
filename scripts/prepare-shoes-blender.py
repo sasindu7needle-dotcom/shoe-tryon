@@ -6,7 +6,6 @@ scene and selection; only new ShoeFit scenes and their imported data are edited.
 import bpy
 import bmesh
 import json
-import re
 import struct
 import sys
 from hashlib import sha256
@@ -33,15 +32,7 @@ PROFILES = {
             {'center': [-0.090, 0.310, -0.004], 'radius': [0.030, 0.029]},
         ]}],
     },
-    'canvas-sneaker': {
-        'opening': [-0.075, 0.075, 0.0],
-        'volumes': [{'name': 'ankle', 'sections': [
-            {'center': [-0.080, 0.045, 0.0], 'radius': [0.040, 0.026]},
-            {'center': [-0.075, 0.068, 0.0], 'radius': [0.044, 0.029]},
-            {'center': [-0.076, 0.105, 0.0], 'radius': [0.030, 0.026]},
-            {'center': [-0.086, 0.290, 0.0], 'radius': [0.032, 0.030]},
-        ]}],
-    },
+    'canvas-sneaker': {'opening': [-0.075, 0.075, 0.0], 'radius': [0.029, 0.024], 'bottom': 0.045, 'top': 0.29},
     'ballet-flat': {
         'heel': -0.119, 'toe': 0.120, 'opening': [-0.078, 0.038, 0.005],
         'volumes': [{'name': 'instep-and-ankle', 'sections': [
@@ -119,48 +110,10 @@ def write_profile(scene, slug):
             section['radius'] = [abs(obj.scale.x), abs(obj.scale.y)]
     validate_profile(profile)
     update_mask_preview(scene, profile)
-    update_tracker_reference(scene, profile)
     (OUTPUT / (slug + '.fit.json')).write_text(json.dumps(profile, indent=2) + '\n')
     scene['tryOnFit'] = profile
     bpy.data.libraries.write(str(OUTPUT / (slug + '.blend')), {scene},
                              path_remap='RELATIVE', fake_user=True, compress=True)
-
-
-def update_tracker_reference(scene, profile):
-    """Show the actual NN's nine landmarks in the web fitter's coordinates.
-
-    These are reference guides, not a scan of the shopper. Rebuild on export so
-    changes to the heel/toe/sole anchors stay aligned with runtime fitting.
-    """
-    source = (ROOT / 'resources/js/tryon/shoe-fitter.js').read_text(encoding='utf-8')
-    frame_source = source.split('export const FOOT_FRAME = Object.freeze({', 1)[1].split('});', 1)[0]
-    frame = {key: float(value) for key, value in re.findall(r'(\w+):\s*(-?[\d.]+)', frame_source)}
-    network = json.loads((ROOT / 'public/vendor/webar-rocks/neural-nets/NN_BAREFOOT_3.json').read_text())
-    heel, toe = profile['anchors']['heel'], profile['anchors']['toe']
-    scale = frame['length'] / (toe[0] - heel[0])
-    center = profile['anchors']['ankleOpening'][2]
-    sole = profile['anchors']['sole'][1]
-    collection_name = 'Tracker reference - ' + scene['shoeSlug']
-    collection = scene.collection.children.get(collection_name)
-    if collection is None:
-        collection = bpy.data.collections.new(collection_name)
-        scene.collection.children.link(collection)
-    for obj in list(collection.objects):
-        bpy.data.objects.remove(obj, do_unlink=True)
-    for keypoint in network['exportData']['keypoints']:
-        x, y, z = keypoint['position']
-        obj = bpy.data.objects.new('Tracker_' + keypoint['label'], None)
-        obj.location = (heel[0] + (y - frame['heelY']) / scale,
-                        -(center + (x - frame['centerX']) / scale),
-                        sole + (z - frame['soleZ']) / scale)
-        obj.empty_display_type = 'SPHERE'
-        obj.empty_display_size = 0.003
-        obj.show_in_front = True
-        obj['trackerLandmark'] = keypoint['label']
-        collection.objects.link(obj)
-    scene['trackerReferenceNetwork'] = 'NN_BAREFOOT_3'
-    scene['trackerReferenceFrame'] = frame
-    bpy.context.view_layer.update()
 
 
 def update_mask_preview(scene, profile):

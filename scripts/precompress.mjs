@@ -9,9 +9,7 @@ import { brotliCompressSync, constants, gzipSync } from 'node:zlib';
 import fs from 'node:fs';
 import path from 'node:path';
 
-// GLB embeds uncompressed vertex/index buffers alongside compressed textures.
-// HTTP compression preserves float attributes needed by left-foot mirroring.
-const COMPRESSIBLE = new Set(['.json', '.js', '.mjs', '.css', '.svg', '.wasm', '.map', '.glb']);
+const COMPRESSIBLE = new Set(['.json', '.js', '.mjs', '.css', '.svg', '.wasm', '.map']);
 const MIN_BYTES = 1024;
 
 function* walk(directory) {
