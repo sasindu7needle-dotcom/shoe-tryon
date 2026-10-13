@@ -56,8 +56,8 @@ class TryOnController extends Controller
     }
 
     /**
-     * Foot networks present on disk, for the debug overlay's switcher. Only
-     * NN_FOOT_31 (the default) and NN_BAREFOOT_3 ship; `npm run models:foot-nets`
+     * Foot networks present on disk, for the shopper and debug switchers. Only
+     * NN_FOOT_31 and NN_BAREFOOT_3 (the default) ship; `npm run models:foot-nets`
      * fetches the rest of the upstream set for comparison.
      *
      * @return array<int, array{name: string, url: string, bytes: int}>

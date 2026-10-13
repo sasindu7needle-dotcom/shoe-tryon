@@ -56,7 +56,7 @@
                 <div class="h-1.5 overflow-hidden rounded-full bg-white/20" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-labelledby="loading-label">
                     <div id="loading-progress" class="h-full w-0 rounded-full bg-orange-500 transition-[width] duration-200"></div>
                 </div>
-                <p class="mt-2 text-xs text-white/60">The first visit downloads about 10 MB. Later visits load instantly.</p>
+                <p class="mt-2 text-xs text-white/60">Foot tracking downloads on the first visit and is saved for next time.</p>
             </div>
 
             <div data-phases="running">
@@ -86,9 +86,13 @@
             <h1 class="mt-1 text-3xl font-semibold">{{ $product->name }}</h1>
             <ol class="mt-5 space-y-3 text-sm text-white/80">
                 <li class="flex gap-3"><span class="grid size-6 shrink-0 place-items-center rounded-full bg-white/10 text-xs font-semibold">1</span>Stand in good light and point your phone at your feet.</li>
-                <li class="flex gap-3"><span class="grid size-6 shrink-0 place-items-center rounded-full bg-white/10 text-xs font-semibold">2</span>Hold the camera about 1 m (3 ft) away, both feet in view.</li>
+                <li class="flex gap-3"><span class="grid size-6 shrink-0 place-items-center rounded-full bg-white/10 text-xs font-semibold">2</span>Place feet flat and slightly apart. Keep toes and heels in view.</li>
                 <li class="flex gap-3"><span class="grid size-6 shrink-0 place-items-center rounded-full bg-white/10 text-xs font-semibold">3</span>Turn your feet slowly to see every angle.</li>
             </ol>
+            <label class="mt-5 block text-sm font-medium" for="foot-mode">
+                Trying on with
+                <select id="foot-mode" class="mt-2 w-full rounded-xl border border-white/20 bg-stone-900 px-3 py-3 text-white focus:border-orange-400 focus:outline-none focus:ring-2 focus:ring-orange-400/40"></select>
+            </label>
             <p data-desktop-only class="mt-5 rounded-2xl border border-amber-400/30 bg-amber-400/10 p-3 text-xs leading-relaxed text-amber-200" hidden>
                 <strong>On a laptop this works poorly.</strong> Foot tracking expects a phone held above your feet,
                 looking down. A built-in webcam sees them side-on from too close, so the shoe may drift or not appear.

@@ -13,7 +13,8 @@ return [
     |
     */
 
-    'neural_network' => env('TRYON_NEURAL_NETWORK', 'vendor/webar-rocks/neural-nets/NN_FOOT_31.json'),
+    // Bare feet suit virtual shoe fitting; shoppers can select socks/shoes before starting.
+    'neural_network' => env('TRYON_NEURAL_NETWORK', 'vendor/webar-rocks/neural-nets/NN_BAREFOOT_3.json'),
 
     // Detection sensitivity in [0, 1]. Lower values find feet faster but
     // accept more false positives.
@@ -44,7 +45,7 @@ return [
     |
     */
 
-    'asset_version' => env('TRYON_ASSET_VERSION', '3'),
+    'asset_version' => env('TRYON_ASSET_VERSION', '4'),
 
     'max_model_upload_kb' => (int) env('TRYON_MAX_MODEL_UPLOAD_KB', 25 * 1024),
 

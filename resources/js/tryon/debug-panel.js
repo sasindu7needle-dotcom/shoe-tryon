@@ -166,6 +166,12 @@ export function createDebugPanel({ settings, networks, onChange }) {
                     lines.push(`  ${foot.lock.status}${foot.lock.reason ? ' / ' + foot.lock.reason : ''}` +
                         ` delta ${formatNumber(foot.lock.translationError, 3)} / ${formatNumber(foot.lock.rotationError, 1)} deg`);
                 }
+                if (foot.quality) {
+                    lines.push(`  fit ${foot.quality.accepted ? 'accepted' : 'rejected'}` +
+                        ` RMS ${formatNumber(100 * foot.quality.rmsRatio, 1)}%` +
+                        ` max ${formatNumber(100 * foot.quality.maxRatio, 1)}%` +
+                        `${foot.quality.reason ? ' / ' + foot.quality.reason : ''}`);
+                }
             });
             if (!feet.length) {
                 lines.push('no feet reported');

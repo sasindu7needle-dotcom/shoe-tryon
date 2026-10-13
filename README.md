@@ -9,7 +9,7 @@ VPS is enough.
 
 | | |
 |---|---|
-| Foot detection & 3D pose | [WebAR.rocks.hand](https://github.com/WebAR-rocks/WebAR.rocks.hand) (MIT), `NN_FOOT_31` network |
+| Foot detection & 3D pose | [WebAR.rocks.hand](https://github.com/WebAR-rocks/WebAR.rocks.hand) (MIT), `NN_BAREFOOT_3` default; `NN_FOOT_31` for socks/shoes |
 | Rendering | three.js r131 (MIT) |
 | Product viewer & native AR | [`<model-viewer>`](https://modelviewer.dev) (Apache-2.0) |
 | Backend | Laravel 13, SQLite by default |
