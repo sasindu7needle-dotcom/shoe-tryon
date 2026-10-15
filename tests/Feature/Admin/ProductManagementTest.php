@@ -108,7 +108,10 @@ class ProductManagementTest extends TestCase
         $product->refresh();
         Storage::disk('public')->assertMissing($firstUpload);
         Storage::disk('public')->assertExists(Product::uploadedDiskPath($product->model_path));
-        $this->assertTrue($product->is_active);
+        $this->assertFalse($product->is_active);
+        $this->assertTrue($product->requires_fit_review);
+        $this->assertEquals(Product::DEFAULT_CALIBRATION, $product->calibration);
+        $this->assertNull($product->fit_reviewed_at);
     }
 
     public function test_deleting_a_product_removes_its_uploaded_files(): void

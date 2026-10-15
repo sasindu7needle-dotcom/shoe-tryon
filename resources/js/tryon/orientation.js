@@ -46,6 +46,9 @@ function range(values) {
  * @returns {{forwardAxis: string, upAxis: string, mirror: boolean, confidence: {toe: number, side: number}}}
  */
 export function detectOrientation(points, upAxis = '+y') {
+    if (!(upAxis?.[1] in AXIS_INDEX) || !['+', '-'].includes(upAxis[0]) || points.some((point) => point.length !== 3 || !point.every(Number.isFinite))) {
+        throw new Error('Orientation requires finite points and a valid up axis.');
+    }
     if (points.length < 16) {
         throw new Error('Not enough geometry to detect the orientation.');
     }
@@ -59,6 +62,9 @@ export function detectOrientation(points, upAxis = '+y') {
     const extents = [first, second].map((index) => range(points.map((point) => point[index])));
     const lengthIndex = extents[0].size >= extents[1].size ? first : second;
     const length = extents[0].size >= extents[1].size ? extents[0] : extents[1];
+    if (length.size <= 1e-8 || height.size <= 1e-8) {
+        throw new Error('The model has degenerate orientation dimensions.');
+    }
 
     // Tallest point within 20% of each end of the length axis.
     const band = 0.2 * length.size;

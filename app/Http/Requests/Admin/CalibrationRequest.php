@@ -26,6 +26,9 @@ class CalibrationRequest extends FormRequest
             'offsetCm.*' => ['required', 'numeric', 'between:-10,10'],
             'rotationDeg' => ['required', 'array', 'size:3'],
             'rotationDeg.*' => ['required', 'numeric', 'between:-45,45'],
+            'model_path' => ['nullable', 'string'],
+            'runtime_preflight' => ['sometimes', 'boolean'],
+            'visual_review' => ['sometimes', 'boolean'],
         ];
     }
 
@@ -38,6 +41,18 @@ class CalibrationRequest extends FormRequest
     {
         return [
             function (Validator $validator) {
+                $product = $this->route('product');
+                if ($this->has('model_path') && $this->input('model_path') !== $product?->model_path) {
+                    $validator->errors()->add('model_path', 'The model changed. Reload the calibrator before saving.');
+                }
+                if ($product?->requires_fit_review) {
+                    if ($this->input('model_path') !== $product->model_path) {
+                        $validator->errors()->add('model_path', 'The model changed. Reload the calibrator before saving.');
+                    }
+                    if (! $this->boolean('runtime_preflight') || ! $this->boolean('visual_review')) {
+                        $validator->errors()->add('visual_review', 'Load the model successfully and confirm that it contains one shoe with an accurate fit.');
+                    }
+                }
                 if (substr((string) $this->input('forwardAxis'), 1) === substr((string) $this->input('upAxis'), 1)) {
                     $validator->errors()->add('upAxis', 'The up axis must be perpendicular to the forward axis.');
                 }

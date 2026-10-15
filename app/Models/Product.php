@@ -16,7 +16,7 @@ use Illuminate\Support\Str;
 #[Fillable([
     'name', 'slug', 'brand', 'description', 'price_cents', 'currency', 'sizes',
     'model_path', 'poster_path', 'default_variant', 'calibration', 'attribution',
-    'is_active', 'sort_order',
+    'is_active', 'sort_order', 'requires_fit_review', 'fit_reviewed_at',
 ])]
 class Product extends Model
 {
@@ -58,6 +58,8 @@ class Product extends Model
             'calibration' => 'array',
             'is_active' => 'boolean',
             'sort_order' => 'integer',
+            'requires_fit_review' => 'boolean',
+            'fit_reviewed_at' => 'datetime',
         ];
     }
 

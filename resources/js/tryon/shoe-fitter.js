@@ -42,8 +42,53 @@ export const DEFAULT_CALIBRATION = Object.freeze({
     rotationDeg: [0, 0, 0],
 });
 
+// Static model geometry: rescan only when axis mapping changes, never for sliders.
+const fittingBounds = new WeakMap();
+
+/** Imported coordinates include the GLB root transform, excluding fitting parents. */
+export function collectImportedPoints(THREE, model, step = 1) {
+    model.updateMatrixWorld(true);
+    const inverseParent = model.parent
+        ? new THREE.Matrix4().copy(model.parent.matrixWorld).invert()
+        : new THREE.Matrix4();
+    const points = [];
+    forEachWorldVertex(THREE, model, (vertex) => points.push(vertex.clone().applyMatrix4(inverseParent).toArray()), step);
+    return points;
+}
+
+export function preflightModel(THREE, model) {
+    model.updateMatrixWorld(true);
+    let meshes = 0;
+    model.traverseVisible((child) => {
+        if (!child.isMesh) return;
+        const position = child.geometry?.attributes?.position;
+        if (!position || position.count < 3 || child.isSkinnedMesh || Object.keys(child.geometry.morphAttributes ?? {}).length) {
+            throw new Error('The model needs static triangle meshes for live foot mirroring.');
+        }
+        const determinant = child.matrixWorld.determinant();
+        if (!Number.isFinite(determinant) || determinant === 0) {
+            throw new Error('The model has a singular transform that cannot be mirrored.');
+        }
+        if ((child.geometry.index?.count ?? position.count) % 3 !== 0) {
+            throw new Error('The model has incomplete triangle geometry.');
+        }
+        meshes++;
+    });
+    if (!meshes) throw new Error('The model has no visible meshes.');
+    const bounds = computeBounds(THREE, model);
+    const size = bounds.getSize(new THREE.Vector3());
+    if (![size.x, size.y, size.z].every((value) => Number.isFinite(value) && value > 1e-8)) {
+        throw new Error('The model has degenerate fitting dimensions.');
+    }
+    return true;
+}
+
 function triple(values) {
-    return [0, 1, 2].map((i) => Number(values?.[i]) || 0);
+    return [0, 1, 2].map((i) => {
+        const value = Number(values?.[i] ?? 0);
+        if (!Number.isFinite(value)) throw new Error('Calibration values must be finite.');
+        return value;
+    });
 }
 
 export function normalizeCalibration(calibration = {}) {
@@ -59,7 +104,7 @@ export function normalizeCalibration(calibration = {}) {
         forwardAxis: merged.forwardAxis,
         upAxis: merged.upAxis,
         mirror: Boolean(merged.mirror),
-        scale: Number(merged.scale) > 0 ? Number(merged.scale) : 1,
+        scale: Number.isFinite(Number(merged.scale)) && Number(merged.scale) > 0 ? Number(merged.scale) : 1,
         offsetCm: triple(merged.offsetCm),
         rotationDeg: triple(merged.rotationDeg),
     };
@@ -83,13 +128,17 @@ export function modelToFootRotation(THREE, forwardAxis, upAxis) {
 export function forEachWorldVertex(THREE, object, callback, step = 1) {
     const vertex = new THREE.Vector3();
     object.updateMatrixWorld(true);
-    object.traverse((child) => {
+    object.traverseVisible((child) => {
         const position = child.isMesh ? child.geometry.attributes.position : null;
         if (!position) {
             return;
         }
         for (let i = 0; i < position.count; i += step) {
-            callback(vertex.fromBufferAttribute(position, i).applyMatrix4(child.matrixWorld));
+            vertex.fromBufferAttribute(position, i).applyMatrix4(child.matrixWorld);
+            if (![vertex.x, vertex.y, vertex.z].every(Number.isFinite)) {
+                throw new Error('The model contains nonfinite geometry.');
+            }
+            callback(vertex);
         }
     });
 }
@@ -149,11 +198,24 @@ export function fitShoe(THREE, model, calibration) {
     mirrored.scale.x = cal.mirror ? -1 : 1;
     mirrored.add(oriented);
 
-    const bounds = computeBounds(THREE, mirrored);
+    const key = `${cal.forwardAxis}/${cal.upAxis}/${cal.mirror}`;
+    let cached = fittingBounds.get(model);
+    if (!cached) {
+        cached = new Map();
+        fittingBounds.set(model, cached);
+    }
+    let bounds = cached.get(key);
+    if (!bounds) {
+        bounds = computeBounds(THREE, mirrored);
+        cached.set(key, bounds.clone());
+    }
     if (bounds.isEmpty()) {
         throw new Error('The model has no visible geometry.');
     }
     const size = bounds.getSize(new THREE.Vector3());
+    if (![size.x, size.y, size.z].every(Number.isFinite) || size.y <= 1e-8 || size.x <= 1e-8 || size.z <= 1e-8) {
+        throw new Error('The model has degenerate fitting dimensions.');
+    }
     let length = size.y;
     let heel = bounds.min.y;
     let sole = bounds.min.z;

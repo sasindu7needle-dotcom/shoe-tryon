@@ -12,6 +12,7 @@ export default defineConfig({
                 'resources/js/tryon/main.js',
                 'resources/js/admin/calibrator.js',
                 'resources/js/admin/poster-capture.js',
+                'resources/js/admin/generations.js',
             ],
             refresh: true,
         }),

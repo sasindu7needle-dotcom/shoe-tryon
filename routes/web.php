@@ -17,6 +17,16 @@ Route::prefix('admin')->name('admin.')->group(function () {
     });
 
     Route::middleware(['auth', 'admin'])->group(function () {
+        Route::get('generations', [Admin\ModelGenerationController::class, 'index'])->name('generations.index');
+        Route::get('generations/create', [Admin\ModelGenerationController::class, 'create'])->name('generations.create');
+        Route::post('generations', [Admin\ModelGenerationController::class, 'store'])->middleware('throttle:10,1')->name('generations.store');
+        Route::get('generations/{generation}', [Admin\ModelGenerationController::class, 'show'])->name('generations.show');
+        Route::get('generations/{generation}/status', [Admin\ModelGenerationController::class, 'status'])->middleware('throttle:60,1')->name('generations.status');
+        Route::get('generations/{generation}/asset', [Admin\ModelGenerationController::class, 'asset'])->name('generations.asset');
+        Route::post('generations/{generation}/start', [Admin\ModelGenerationController::class, 'start'])->middleware('throttle:5,1')->name('generations.start');
+        Route::post('generations/{generation}/resume', [Admin\ModelGenerationController::class, 'resume'])->middleware('throttle:5,1')->name('generations.resume');
+        Route::post('generations/{generation}/retry', [Admin\ModelGenerationController::class, 'retry'])->middleware('throttle:5,1')->name('generations.retry');
+        Route::post('generations/{generation}/prepare', [Admin\ModelGenerationController::class, 'prepare'])->name('generations.prepare');
         Route::post('logout', [Admin\AuthenticatedSessionController::class, 'destroy'])->name('logout');
         Route::get('/', Admin\DashboardController::class)->name('dashboard');
         Route::resource('products', Admin\ProductController::class)->except('show');

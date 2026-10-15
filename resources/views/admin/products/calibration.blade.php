@@ -45,6 +45,10 @@
         </div>
 
         <form data-controls class="space-y-5 rounded-2xl border border-stone-200 bg-white p-5">
+            <p class="text-xs text-stone-500">This preview fits against a reference shoe; it does not measure a real foot.</p>
+            @if ($product->requires_fit_review)
+                <label class="flex items-start gap-2 text-sm"><input type="checkbox" data-visual-review required class="mt-1">I reviewed one shoe, with no pair or background geometry, and confirmed its orientation and fit.</label>
+            @endif
             <div>
                 <div class="flex items-center justify-between">
                     <h2 class="text-sm font-semibold">Orientation</h2>

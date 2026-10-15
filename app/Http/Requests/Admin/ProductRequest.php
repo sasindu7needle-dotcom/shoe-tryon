@@ -8,6 +8,7 @@ use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\Validator;
 
 class ProductRequest extends FormRequest
 {
@@ -82,5 +83,15 @@ class ProductRequest extends FormRequest
             'is_active' => $this->validated('is_active'),
             'sort_order' => (int) $this->validated('sort_order', 0),
         ];
+    }
+
+    public function after(): array
+    {
+        return [function (Validator $validator) {
+            $product = $this->route('product');
+            if ($this->boolean('is_active') && $product?->requires_fit_review && ! $this->hasFile('model')) {
+                $validator->errors()->add('is_active', 'Review the model in the calibrator and save its fit before publishing.');
+            }
+        }];
     }
 }

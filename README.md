@@ -90,6 +90,10 @@ npm test           # fitting maths, orientation detection, colourways
 
 ## Deploy
 
+Photo-based 3D generation is available through **Admin → Generate from photos**.
+See [Tripo setup and acceptance checklist](docs/tripo-generation.md) for credentials,
+queue workers, scheduler, model review and publishing.
+
 See [DEPLOYMENT.md](DEPLOYMENT.md): one `docker compose up -d` on a VPS, with
 automatic HTTPS and pre-compressed assets.
 

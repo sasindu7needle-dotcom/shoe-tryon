@@ -14,6 +14,7 @@
         <nav class="mx-auto flex h-14 max-w-7xl items-center gap-6 px-4 sm:px-6">
             <a href="{{ route('admin.dashboard') }}" class="font-semibold">{{ config('app.name') }} <span class="text-stone-400">admin</span></a>
             <div class="flex flex-1 items-center gap-4 text-sm font-medium text-stone-600">
+                <a href="{{ route('admin.generations.index') }}" class="hover:text-stone-900">Generate from photos</a>
                 <a href="{{ route('admin.dashboard') }}" @class(['hover:text-stone-900', 'text-stone-900' => request()->routeIs('admin.dashboard')])>Dashboard</a>
                 <a href="{{ route('admin.products.index') }}" @class(['hover:text-stone-900', 'text-stone-900' => request()->routeIs('admin.products.*')])>Products</a>
                 <a href="{{ route('home') }}" class="hover:text-stone-900" target="_blank">View store ↗</a>

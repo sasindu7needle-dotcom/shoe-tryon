@@ -8,6 +8,8 @@ import * as THREE from 'three';
 
 import {
     computeBounds,
+    collectImportedPoints,
+    preflightModel,
     createCalfOccluder,
     createShoeOccluders,
     ensureIndexedGeometry,
@@ -241,4 +243,53 @@ test('the calf occluder rises from the ankle along +Z', () => {
     const bounds = computeBounds(THREE, createCalfOccluder(THREE));
     assert.ok(bounds.min.z < FOOT_FRAME.soleZ + 1, 'starts around the ankle');
     assert.ok(bounds.max.z > 2, 'reaches well above the shoe');
+});
+
+
+test('degenerate and nonfinite shoe geometry is rejected before scaling', () => {
+    assert.throws(() => fitShoe(THREE, boxModel({ length: 0 }), { forwardAxis: '+x' }), /degenerate/);
+    const model = boxModel();
+    model.children[0].geometry.attributes.position.setX(0, NaN);
+    assert.throws(() => fitShoe(THREE, model, { forwardAxis: '+x' }), /nonfinite/);
+});
+
+test('hidden background geometry does not affect the fitted footprint', () => {
+    const model = boxModel();
+    const hidden = new THREE.Group();
+    hidden.visible = false;
+    hidden.add(new THREE.Mesh(new THREE.BoxGeometry(100, 100, 100)));
+    model.add(hidden);
+    const fit = fitShoe(THREE, model, { forwardAxis: '+x' });
+    assert.ok(Math.abs(fit.userData.footprint.width - FOOT_FRAME.length * 0.09 / 0.28) < 1e-6);
+});
+
+test('orientation coordinates include imported root transforms and exclude fitting parents', () => {
+    const model = boxModel();
+    model.rotation.y = Math.PI / 2;
+    model.scale.setScalar(2);
+    model.position.set(3, 4, 5);
+    const before = collectImportedPoints(THREE, model);
+    const fit = fitShoe(THREE, model, { forwardAxis: '-z', offsetCm: [4, 5, 6] });
+    const after = collectImportedPoints(THREE, model);
+    assert.equal(before.length, after.length);
+    before.forEach((point, i) => point.forEach((value, axis) => assert.ok(Math.abs(value - after[i][axis]) < 1e-6)));
+    assert.ok(Math.abs(fit.userData.footprint.length - FOOT_FRAME.length) < 1e-6);
+});
+
+test('slider fitting reuses static bounds instead of scanning vertices again', () => {
+    const model = boxModel();
+    fitShoe(THREE, model, { forwardAxis: '+x' });
+    const position = model.children[0].geometry.attributes.position;
+    const original = position.getX;
+    position.getX = () => { throw new Error('Unexpected vertex scan'); };
+    assert.doesNotThrow(() => fitShoe(THREE, model, { forwardAxis: '+x', scale: 1.1, offsetCm: [1, 0, 0] }));
+    position.getX = original;
+});
+
+test('runtime preflight rejects empty scenes and meshes that cannot be mirrored', () => {
+    assert.throws(() => preflightModel(THREE, new THREE.Group()), /no visible meshes/);
+    const model = boxModel();
+    model.children[0].isSkinnedMesh = true;
+    assert.throws(() => preflightModel(THREE, model), /static triangle/);
+    assert.equal(preflightModel(THREE, boxModel()), true);
 });

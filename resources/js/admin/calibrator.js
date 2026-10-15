@@ -8,6 +8,8 @@ import { loadGltf, setupLighting } from '../tryon/scene.js';
 import { detectOrientation } from '../tryon/orientation.js';
 import {
     createShoeOccluders,
+    collectImportedPoints,
+    preflightModel,
     DEFAULT_CALIBRATION,
     ensureIndexedGeometry,
     fitShoe,
@@ -28,6 +30,8 @@ let model = null;
 let shoe = null;
 let genericOccluder = null;
 let masks = [];
+let runtimePreflight = false;
+let orientationPoints = null;
 
 /* ── Scene ───────────────────────────────────────────────────────── */
 
@@ -103,42 +107,16 @@ function refreshShoe() {
         masks = createShoeOccluders(THREE, shoe, genericOccluder);
         masks.forEach(mask => scene.add(applyMaterial(mask, maskMaterial)));
         loadStatus.textContent = '';
+        runtimePreflight = true;
     } catch (error) {
+        runtimePreflight = false;
         loadStatus.textContent = error.message;
     }
 }
 
-/** Vertices in the model's own coordinates, sampled for large meshes. */
-function collectModelPoints(object) {
-    object.updateMatrixWorld(true);
-    const toModelSpace = new THREE.Matrix4().copy(object.matrixWorld).invert();
-    const meshes = [];
-    let total = 0;
-    object.traverse((child) => {
-        if (child.isMesh) {
-            meshes.push(child);
-            total += child.geometry.attributes.position.count;
-        }
-    });
-
-    const step = Math.max(1, Math.ceil(total / 40000));
-    const points = [];
-    const vertex = new THREE.Vector3();
-    const matrix = new THREE.Matrix4();
-    for (const mesh of meshes) {
-        matrix.multiplyMatrices(toModelSpace, mesh.matrixWorld);
-        const position = mesh.geometry.attributes.position;
-        for (let i = 0; i < position.count; i += step) {
-            points.push(vertex.fromBufferAttribute(position, i).applyMatrix4(matrix).toArray());
-        }
-    }
-
-    return points;
-}
-
 function detect() {
     try {
-        const result = detectOrientation(collectModelPoints(model), calibration.upAxis);
+        const result = detectOrientation(orientationPoints, calibration.upAxis);
         calibration = { ...calibration, forwardAxis: result.forwardAxis, mirror: result.mirror };
         writeForm();
         refreshShoe();
@@ -146,7 +124,7 @@ function detect() {
             `Detected: toes along ${result.forwardAxis.toUpperCase()}, ` +
             `${result.mirror ? 'left shoe (mirrored)' : 'right shoe'}. ` +
             `Confidence ${Math.round(result.confidence.toe * 100)}% / ${Math.round(result.confidence.side * 100)}%. ` +
-            'Check the preview and adjust if needed.';
+            'This is a suggestion. Confirm toes, top and side visually before saving.';
     } catch (error) {
         detectResult.textContent = `Could not detect the orientation: ${error.message}`;
     }
@@ -193,6 +171,7 @@ function updateOutput(field) {
 
 form.addEventListener('input', (event) => {
     const field = event.target;
+    if (!field.name) return;
     writeValue(field.name, field.type === 'checkbox' ? field.checked : field.type === 'range' ? Number(field.value) : field.value);
     updateOutput(field);
     refreshShoe();
@@ -211,6 +190,10 @@ form.addEventListener('click', (event) => {
 
 form.addEventListener('submit', async (event) => {
     event.preventDefault();
+    if (!runtimePreflight || (config.requiresReview && !form.querySelector('[data-visual-review]')?.checked)) {
+        saveStatus.textContent = 'Load a compatible model and confirm the visual review before saving.';
+        return;
+    }
     const button = form.querySelector('[type="submit"]');
     button.disabled = true;
     saveStatus.textContent = 'Saving…';
@@ -223,7 +206,7 @@ form.addEventListener('submit', async (event) => {
                 Accept: 'application/json',
                 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
             },
-            body: JSON.stringify(calibration),
+            body: JSON.stringify({ ...calibration, model_path: config.modelPath, runtime_preflight: runtimePreflight, visual_review: form.querySelector('[data-visual-review]')?.checked ?? false }),
         });
         const payload = await response.json();
         if (!response.ok) {
@@ -253,6 +236,10 @@ form.addEventListener('submit', async (event) => {
         genericOccluder = occluderGltf.scene.children[0];
 
         model = productGltf.scene;
+        if (config.requiresReview) preflightModel(THREE, model);
+        let vertices = 0;
+        model.traverseVisible((child) => { vertices += child.isMesh ? child.geometry.attributes.position.count : 0; });
+        orientationPoints = collectImportedPoints(THREE, model, Math.max(1, Math.ceil(vertices / 40000)));
         ensureIndexedGeometry(THREE, model);
         writeForm();
         refreshShoe();

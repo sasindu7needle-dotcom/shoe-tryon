@@ -9,6 +9,10 @@
 @endif
 
 @section('content')
+    <p class="mb-4 text-sm"><a href="{{ route('admin.generations.create') }}" class="font-semibold text-orange-600 hover:underline">Generate from photos</a> as an alternative to manual GLB upload.</p>
+    @if ($product->requires_fit_review)
+        <p class="mb-4 rounded-xl bg-amber-50 p-4 text-sm text-amber-900">This model needs renewed review. <a href="{{ route('admin.products.calibration.edit', $product) }}" class="underline">Review and save its fit</a> before publishing.</p>
+    @endif
     <div class="flex flex-wrap items-center justify-between gap-3">
         <h1 class="text-2xl font-semibold">{{ $product->exists ? "Edit {$product->name}" : 'Add product' }}</h1>
         @if ($product->exists)

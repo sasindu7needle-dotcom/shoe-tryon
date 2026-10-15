@@ -7,8 +7,10 @@ use App\Http\Requests\Admin\ProductRequest;
 use App\Models\Product;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
+use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
 
 class ProductController extends Controller
@@ -46,21 +48,44 @@ class ProductController extends Controller
 
     public function update(ProductRequest $request, Product $product): RedirectResponse
     {
-        $product->fill($request->productAttributes());
-        $status = 'Product updated.';
+        $oldFiles = [];
+        $newFiles = [];
+        try {
+            $status = DB::transaction(function () use ($request, &$product, &$oldFiles, &$newFiles) {
+                $product = Product::lockForUpdate()->findOrFail($product->id);
+                if ($request->boolean('is_active') && $product->requires_fit_review && ! $request->hasFile('model')) {
+                    throw ValidationException::withMessages(['is_active' => 'Review and save the current model fit before publishing.']);
+                }
+                $product->fill($request->productAttributes());
+                $status = 'Product updated.';
+                if ($request->hasFile('model')) {
+                    $oldFiles[] = $product->model_path;
+                    $oldFiles[] = $product->poster_path;
+                    $newFiles[] = $product->model_path = $this->storeModel($request->file('model'));
+                    $product->calibration = Product::DEFAULT_CALIBRATION;
+                    $product->requires_fit_review = true;
+                    $product->fit_reviewed_at = null;
+                    $product->is_active = false;
+                    $product->poster_path = null;
+                    $status = 'Model replaced. Re-check the fit in the calibrator.';
+                }
+                if ($request->hasFile('poster')) {
+                    $oldFiles[] = $product->poster_path;
+                    $newFiles[] = $product->poster_path = $this->storePoster($request->file('poster'));
+                }
+                $product->save();
 
-        if ($request->hasFile('model')) {
-            $this->deleteUpload($product->model_path);
-            $product->model_path = $this->storeModel($request->file('model'));
-            $status = 'Model replaced. Re-check the fit in the calibrator.';
+                return $status;
+            });
+        } catch (\Throwable $exception) {
+            foreach ($newFiles as $path) {
+                $this->deleteUpload($path);
+            }
+            throw $exception;
         }
-
-        if ($request->hasFile('poster')) {
-            $this->deleteUpload($product->poster_path);
-            $product->poster_path = $this->storePoster($request->file('poster'));
+        foreach ($oldFiles as $path) {
+            $this->deleteUpload($path);
         }
-
-        $product->save();
 
         return redirect()->route('admin.products.edit', $product)->with('status', $status);
     }
