@@ -9,6 +9,11 @@ All four models were already below 30,000 triangles and 3 MB. Their geometry and
 texture bytes are unchanged in the final GLBs; optimization here is calibrated
 fit and per-shoe masking, without destructive mesh reduction.
 
+The [October 15 live Blender audit](../../../docs/SHOE-OPTIMIZATION-AUDIT.md)
+checks the shipped GLBs and documents draw calls, estimated texture memory and
+camera lifecycle fixes. Repeat it with `npm run models:audit:blender` while the
+Blender add-on is listening on port 9876.
+
 ## Reproduce from originals
 
 1. Run `node scripts/prepare-sample-models.mjs --stage` in the repository.

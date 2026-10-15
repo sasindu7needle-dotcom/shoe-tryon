@@ -27,8 +27,16 @@ for (const slug of ['street-runner', 'canvas-sneaker', 'ballet-flat', 'rain-boot
         const { width, height } = await sharp(data).metadata();
         return { width, height, sha256: createHash('sha256').update(data).digest('hex') };
     }));
+    let drawCallsPerShoe = 0;
+    root.getDefaultScene().traverse(node => {
+        drawCallsPerShoe += node.getMesh()?.listPrimitives().length ?? 0;
+    });
     report.push({
         slug, bytes: (await fs.stat(file)).size, triangles,
+        drawCallsPerShoe,
+        // Estimate for every texture/variant resident as RGBA8 plus mipmaps.
+        // This is not measured GPU usage and excludes masks, geometry and IBL.
+        allVariantTextureMiB: textures.reduce((sum, { width, height }) => sum + width * height * 4 * 4 / 3, 0) / 1024 ** 2,
         materials: root.listMaterials().length, textures,
         bounds: getBounds(root.getDefaultScene()),
         geometryHash: geometry.digest('hex'),

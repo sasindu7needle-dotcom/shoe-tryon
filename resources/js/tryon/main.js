@@ -429,6 +429,7 @@ async function flipCamera() {
         await setPaused(true);
         HandTrackerThreeHelper.reset_tracking();
         stopCamera(state.stream);
+        state.stream = null;
         state.stream = await openCamera(ui.video, facingMode);
         state.facingMode = facingMode;
         await replaceVideo(ui.video);
@@ -439,6 +440,7 @@ async function flipCamera() {
         fail(error);
     } finally {
         state.busy = false;
+        await onVisibilityChange();
     }
 }
 
@@ -449,17 +451,21 @@ async function onVisibilityChange() {
     state.busy = true;
 
     try {
-        if (document.hidden) {
-            // Release the camera (and its privacy indicator) in the background.
-            await setPaused(true);
-            HandTrackerThreeHelper.reset_tracking();
-            stopCamera(state.stream);
-            state.stream = null;
-        } else {
-            state.stream = await openCamera(ui.video, state.facingMode);
-            await replaceVideo(ui.video);
-            layout();
-            await setPaused(false);
+        // Visibility may change while pause, capture or video replacement is
+        // pending. Reconcile the latest state before releasing the busy guard.
+        while (state.phase === 'running' && Boolean(state.stream) === document.hidden) {
+            if (document.hidden) {
+                await setPaused(true);
+                HandTrackerThreeHelper.reset_tracking();
+                stopCamera(state.stream);
+                state.stream = null;
+                setTracking(false);
+            } else {
+                state.stream = await openCamera(ui.video, state.facingMode);
+                await replaceVideo(ui.video);
+                layout();
+                await setPaused(false);
+            }
         }
     } catch (error) {
         fail(error);
@@ -558,6 +564,7 @@ async function start() {
         setProgress(1);
         setPhase('running');
         renderTracking(false);
+        await onVisibilityChange();
 
         if (debugEnabled) {
             await openDebugPanel();
