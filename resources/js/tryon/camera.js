@@ -54,11 +54,18 @@ export async function openCamera(video, facingMode) {
         throw new TryOnError(code, message);
     }
 
-    video.muted = true;
-    video.playsInline = true;
-    video.srcObject = stream;
-    await video.play();
-    await waitForFrames(video);
+    try {
+        video.muted = true;
+        video.playsInline = true;
+        video.srcObject = stream;
+        await video.play();
+        await waitForFrames(video);
+    } catch (error) {
+        // The caller cannot release a stream it has not received yet.
+        stopCamera(stream);
+        if (video.srcObject === stream) video.srcObject = null;
+        throw error;
+    }
 
     return stream;
 }

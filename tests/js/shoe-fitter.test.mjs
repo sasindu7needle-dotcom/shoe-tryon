@@ -9,6 +9,7 @@ import * as THREE from 'three';
 import {
     computeBounds,
     createCalfOccluder,
+    createShoeOccluders,
     ensureIndexedGeometry,
     fitShoe,
     FOOT_FRAME,
@@ -35,6 +36,120 @@ test('calibration defaults are filled in and axes validated', () => {
 
     assert.throws(() => normalizeCalibration({ forwardAxis: '+y', upAxis: '-y' }), /perpendicular/);
     assert.throws(() => normalizeCalibration({ forwardAxis: 'up' }), /Unknown axis/);
+});
+
+function profiledModel() {
+    const model = boxModel();
+    model.userData.tryOnFit = {
+        version: 1,
+        anchors: { heel: [0.01, 0, 0.01], toe: [0.27, 0, 0.01], sole: [0, 0.005, 0], ankleOpening: [0.06, 0.08, 0.01] },
+        occlusion: { radius: [0.025, 0.02], bottom: 0.05, top: 0.3 },
+    };
+    return model;
+}
+
+test('authored anchors control the fit even when geometry extends beyond them', () => {
+    const model = profiledModel();
+    const fitted = fitShoe(THREE, model, { forwardAxis: '+x' });
+    const point = (name) => new THREE.Vector3().fromArray(model.userData.tryOnFit.anchors[name]).applyMatrix4(model.matrixWorld);
+    assert.ok(Math.abs(point('heel').y - FOOT_FRAME.heelY) < 1e-6);
+    assert.ok(Math.abs(point('toe').y - point('heel').y - FOOT_FRAME.length) < 1e-6);
+    assert.ok(Math.abs(point('sole').z - FOOT_FRAME.soleZ) < 1e-6);
+    assert.ok(Math.abs(point('ankleOpening').x - FOOT_FRAME.centerX) < 1e-6);
+    assert.equal(fitted.userData.tryOnFit.version, 1);
+});
+
+test('authored masks follow the same mirrored and calibrated model transform', () => {
+    const model = profiledModel();
+    const fitted = fitShoe(THREE, model, { forwardAxis: '+x', mirror: true, scale: 1.1, offsetCm: [2, 1, 3], rotationDeg: [5, 0, 15] });
+    const [mask] = createShoeOccluders(THREE, fitted);
+    const expected = new THREE.Vector3(0.06, 0.175, 0.01).applyMatrix4(model.matrixWorld);
+    const center = computeBounds(THREE, mask).getCenter(new THREE.Vector3());
+    assert.ok(center.distanceTo(expected) < 1e-6);
+    assert.ok(mask.geometry.index);
+});
+
+function volumeModel() {
+    const model = profiledModel();
+    model.userData.tryOnFit.version = 2;
+    model.userData.tryOnFit.occlusion = { volumes: [{ name: 'instep', sections: [
+        { center: [0.10, 0.03, 0.01], radius: [0.07, 0.025] },
+        { center: [0.08, 0.07, 0.01], radius: [0.05, 0.03] },
+        { center: [0.06, 0.30, 0.01], radius: [0.025, 0.03] },
+    ] }] };
+    return model;
+}
+
+test('version 2 masks are closed, indexed volumes with caps visible from above', () => {
+    const model = volumeModel();
+    const shoe = fitShoe(THREE, model, { forwardAxis: '+x' });
+    const [mask] = createShoeOccluders(THREE, shoe);
+    assert.equal(mask.name, 'shoeOccluder_instep');
+    const inverse = new THREE.Matrix4().copy(model.matrixWorld).invert();
+    const geometry = mask.geometry.clone().applyMatrix4(inverse);
+    const local = new THREE.Mesh(geometry, new THREE.MeshBasicMaterial({ side: THREE.DoubleSide }));
+    const ray = new THREE.Raycaster(new THREE.Vector3(0.06, 1, 0.01), new THREE.Vector3(0, -1, 0));
+    const hits = ray.intersectObject(local);
+    assert.ok(hits.length >= 2, 'ray hits both end caps');
+    assert.ok(Math.abs(hits[0].point.y - 0.3) < 1e-6);
+    assert.ok(hits.some(hit => Math.abs(hit.point.y - 0.03) < 1e-6));
+    const edges = new Map();
+    const index = geometry.index.array;
+    for (let i = 0; i < index.length; i += 3) {
+        for (const [a, b] of [[index[i], index[i+1]], [index[i+1], index[i+2]], [index[i+2], index[i]]]) {
+            const key = [Math.min(a, b), Math.max(a, b)].join(':');
+            edges.set(key, (edges.get(key) ?? 0) + 1);
+        }
+    }
+    assert.ok([...edges.values()].every(count => count === 2), 'no holes or loose boundary edges');
+});
+
+test('every section receives the shoe transform, including calibration and mirroring', () => {
+    const model = volumeModel();
+    const shoe = fitShoe(THREE, model, { forwardAxis: '+x', mirror: true, scale: 1.08,
+        offsetCm: [1, -2, 0.5], rotationDeg: [4, 7, -12] });
+    const [mask] = createShoeOccluders(THREE, shoe);
+    const position = mask.geometry.attributes.position;
+    for (const [i, section] of model.userData.tryOnFit.occlusion.volumes[0].sections.entries()) {
+        const actual = new THREE.Vector3().fromBufferAttribute(position, i * 32);
+        const expected = new THREE.Vector3(section.center[0] + section.radius[0], section.center[1], section.center[2])
+            .applyMatrix4(model.matrixWorld);
+        assert.ok(actual.distanceTo(expected) < 1e-6);
+    }
+});
+
+test('invalid version 2 volumes use the generic mask without leaving partially built masks', () => {
+    const generic = new THREE.Mesh(new THREE.BoxGeometry());
+    const invalidVolumes = [
+        [],
+        [{ name: 'bad', sections: [{ center: [0, 0, 0], radius: [0.02, 0.02] }] }],
+        [{ name: 'bad', sections: [{ center: [0, 0.1, 0], radius: [0.02, 0.02] },
+            { center: [0, 0.1, 0], radius: [0.02, 0.02] }] }],
+        [{ name: 'bad', sections: [{ center: [0, 0, 0], radius: [NaN, 0.02] },
+            { center: [0, 0.2, 0], radius: [0.02, 0.02] }] }],
+    ];
+    for (const volumes of invalidVolumes) {
+        const model = volumeModel();
+        model.userData.tryOnFit.occlusion.volumes = volumes;
+        const fitted = fitShoe(THREE, model, { forwardAxis: '+x' });
+        const [mask] = createShoeOccluders(THREE, fitted, generic);
+        assert.equal(mask.scale.x, 0.95);
+        assert.notEqual(mask.geometry, generic.geometry);
+        assert.deepEqual(createShoeOccluders(THREE, fitted), [], 'no generic template means no unsafe mask');
+    }
+    assert.equal(generic.scale.x, 1);
+});
+
+test('malformed profiles use the legacy fit and generic mask without mutating the template', () => {
+    const model = boxModel();
+    model.userData.tryOnFit = { version: 1, anchors: { heel: [NaN, 0, 0] } };
+    const fitted = fitShoe(THREE, model, { forwardAxis: '+x' });
+    assert.equal(fitted.userData.tryOnFit, null);
+    const generic = new THREE.Mesh(new THREE.BoxGeometry());
+    const [mask] = createShoeOccluders(THREE, fitted, generic);
+    assert.notEqual(mask.geometry, generic.geometry);
+    assert.equal(generic.scale.x, 1);
+    assert.equal(mask.scale.x, 0.95);
 });
 
 test('the forward axis becomes +Y and the up axis +Z in the foot frame', () => {

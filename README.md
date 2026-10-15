@@ -99,7 +99,8 @@ automatic HTTPS and pre-compressed assets.
   1 m (3 ft) away. It is a **visual fit preview, not a measurement** — it does not
   size feet.
 - The first visit downloads ~10 MB of tracking model (cached for a year afterwards).
-- The leg is hidden by a generic occluder, not a per-shopper silhouette, so the
-  shoe opening can look slightly off on very thin or wide ankles.
+- Bundled shoes use Blender-authored fit anchors and ankle masks; older uploads
+  use the generic mask. These are not per-shopper silhouettes, so very thin or
+  wide ankles still need visual checks. See [fit validation](docs/SHOE-FIT-RESULTS.md).
 - Tracking quality on real phones still needs a pass on your own devices; see the
   device checklist in DEPLOYMENT.md.

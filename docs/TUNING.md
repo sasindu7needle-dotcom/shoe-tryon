@@ -34,6 +34,8 @@ It shows, every frame:
 | `DETECTED` / `no` | Whether the score passed the detection threshold. |
 | `pose ok` / `POSE FAILED` | Whether the 3D pose solved. Detected but failing here points at the field of view. |
 | `video` / `canvas` | Capture resolution versus render resolution. |
+| `acquiring` / `tracking` / `lost` | Independent pose-filter state for each foot. Acquiring requires consecutive valid observations; missing or rejected poses are hidden. |
+| `delta` | Translation in tracker units and rotation in degrees before pose filtering. This is a diagnostic, not measured foot registration error. |
 
 `Draw landmarks` overlays the nine tracked points, which is the quickest way to
 see whether the network is finding feet at all or locking onto something else.
@@ -63,6 +65,12 @@ TRYON_DETECTION_THRESHOLD=0.7
 smoother but lags), `min cut-off` sets the floor. Only worth touching if the fit
 is right but jittery.
 
+An additional time-based pose filter rejects isolated jumps and smooths position
+and orientation. The overlay distinguishes a successful solve from acquisition
+of a visible lock. A gap of 150 ms resets filter history. Source FOV now maps
+through the video's cover crop using focal lengths; retain the source FOV setting
+when changing orientation rather than manually compensating for portrait mode.
+
 **4. A different network** — upstream ships several. Fetch them and switch in
 the overlay's dropdown:
 
@@ -89,3 +97,24 @@ lines. Put them in `.env` and restart to make them the default for everyone.
   model problem. Use the admin fit editor (see the `shoe-model-onboarding` skill).
 - **Nothing detected at any threshold** — framing, light, or the feet being out
   of frame. Check the landmarks overlay before blaming settings.
+
+## Check the new shoe profiles on the same phone
+
+Use the updated models with asset version `3`. Keep the same camera, lighting,
+framing and FOV for the first comparison. Capture each shoe with both feet still,
+toes turned inward/outward, and the phone looking straight down and obliquely.
+Include a bare-foot reference from the same position and a short motion clip.
+
+For the ballet flat, check that skin is visible through the opening up to the
+vamp without losing the rim. For the runner, check heel seating, toe coverage
+and both sides of the collar. For the boot, check the cuff around the leg and
+that the shaft stays intact; ankle bending remains limited by foot-only tracking.
+Compare the live preview and downloaded snapshot, then check loss/reacquisition,
+switching products, and FPS in debug mode.
+
+If every shoe shares the same tilt or offset, adjust the FOV in the overlay
+before changing individual shoe calibration. If only one shoe is wrong, use its
+admin fit controls or edit its Blender fit markers. Record the device/browser,
+selected FOV and view with fresh captures so further tuning has a repeatable
+reference. These checks are pending; automated geometry/render checks do not
+establish real-world foot registration accuracy.

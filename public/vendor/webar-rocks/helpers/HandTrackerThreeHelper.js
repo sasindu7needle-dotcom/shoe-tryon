@@ -58,7 +58,7 @@ const HandTrackerThreeHelper = (function(){
     debugDisplayLandmarks: false
   };
   let _spec = null;
-  let _landmarksStabilizers = null, _poseFilters = null, _neuralNetworkIndices = [];
+  let _landmarksStabilizers = null, _poseFilters = null, _neuralNetworkIndices = [], _chiralities = [];
 
   let _gl = null, _glVideoTexture = null, _videoTransformMat2 = null, _videoElement = null;
   
@@ -407,7 +407,6 @@ const HandTrackerThreeHelper = (function(){
     _gl.flush();
 
     // draw the THREE.js scene:
-    let isRender = false;
     const detectStates = (_spec.maxHandsDetected === 1) ? [detectStatesArg] : detectStatesArg;
     const poseValidity = detectStates.map(function(){ return false; });
     for (let i = 0; i<detectStates.length; ++i){
@@ -415,9 +414,15 @@ const HandTrackerThreeHelper = (function(){
       const trackerParent = _three.trackersParent[i];
       const stabilizer = _landmarksStabilizers[i];
       const poseFilter = _poseFilters[i];
+      trackerParent.userData.poseSolved = false;
       
       if (detectState.isDetected) {
-        trackerParent.visible = true;
+        if (_neuralNetworkIndices[i] !== detectState.neuralNetworkInd || _chiralities[i] !== detectState.isRightHand) {
+          stabilizer.reset();
+          if (poseFilter !== null) poseFilter.reset();
+          _neuralNetworkIndices[i] = detectState.neuralNetworkInd;
+          _chiralities[i] = detectState.isRightHand;
+        }
         
         if (_spec.debugDisplayLandmarks){
           draw_landmarks(detectState);
@@ -428,30 +433,21 @@ const HandTrackerThreeHelper = (function(){
         }
 
         const dpr = window.devicePixelRatio || 1.0;
-        const landmarksStabilized = stabilizer.update(detectState.landmarks, vWidth/dpr, vHeight/dpr);
+        const landmarksStabilized = stabilizer.update(detectState.landmarks,
+          _spec.VTOCanvas.clientWidth || vWidth/dpr, _spec.VTOCanvas.clientHeight || vHeight/dpr);
 
         const isValidPose = compute_pose(landmarksStabilized, detectState.isRightHand, poseFilter, i);
         poseValidity[i] = isValidPose;
-        isRender =  isRender || isValidPose;
+        trackerParent.visible = isValidPose;
 
-        if (_neuralNetworkIndices[i] !== detectState.neuralNetworkInd){
-          //console.log('NN changed');
-          stabilizer.reset();
-          if (poseFilter !== null){
-            poseFilter.reset();
-          }
-          _neuralNetworkIndices[i] = detectState.neuralNetworkInd;
-        }
-
-      } else if(trackerParent.visible){
+      } else {
         stabilizer.reset();
         if (_spec.hideTrackerIfDetectionLost){
           trackerParent.visible = false;
         }
-        _neuralNetworkIndices[i] = -1;
-        isRender = true;
         if (poseFilter !== null){
-          poseFilter.reset();
+          if (poseFilter.miss) poseFilter.miss();
+          else poseFilter.reset();
         }
       }
 
@@ -459,14 +455,15 @@ const HandTrackerThreeHelper = (function(){
 
     if (_spec.callbackTrack !== null){
       // The optional second argument is backward compatible and lets consumers
-      // distinguish a detector hit from a successfully solved 3D pose.
+      // distinguish a detector hit from an accepted, filtered 3D pose.
       _spec.callbackTrack(
         detectStatesArg,
         (_spec.maxHandsDetected === 1) ? poseValidity[0] : poseValidity
       );
     }
     
-    if (isRender){
+    // Render even when no pose is valid, to clear any shoe from the last frame.
+    {
       if (_spec.isPostProcessing){
         _three.composer.render();
       } else {
@@ -554,15 +551,18 @@ const HandTrackerThreeHelper = (function(){
     trackerHidden.visible = false;
   
     if (!solved){
+      if (poseFilter !== null && poseFilter.miss) poseFilter.miss('pose');
       return false;
     }
 
     // copy pose to THREE.js matrix:
     const m = _poseEstimation.matMov.elements;
     const r = solved.rotation, t = solved.translation;
-    if (isNaN(t[0])){
+    if (!t.every(Number.isFinite) || !r.every(row => row.every(Number.isFinite))){
+      if (poseFilter !== null && poseFilter.miss) poseFilter.miss('invalid');
       return false;
     }
+    _three.trackersParent[handIndex].userData.poseSolved = true;
 
     // set translation part:
     m[12] = -t[0], m[13] = -t[1], m[14] = -t[2];
@@ -580,6 +580,7 @@ const HandTrackerThreeHelper = (function(){
         _three.trackersParent[handIndex], _three.camera, that.get_viewHeight(),
         _poseEstimation.matMov);
     }
+    if (!filteredMovMatrix || !filteredMovMatrix.elements.every(Number.isFinite)) return false;
 
     // move THREE follower object:
     _three.trackersParent[handIndex].matrix.copy(filteredMovMatrix);
@@ -743,6 +744,15 @@ const HandTrackerThreeHelper = (function(){
       update_focals();
     },
 
+
+    reset_tracking: function(){
+      _neuralNetworkIndices = [];
+      _chiralities = [];
+      if (_landmarksStabilizers) _landmarksStabilizers.forEach(s => s.reset());
+      if (_poseFilters) _poseFilters.forEach(f => { if (f) f.reset(); });
+      if (_three.trackersParent) _three.trackersParent.forEach(p => { p.visible = false; });
+      if (_three.renderer) _three.renderer.render(_three.scene, _three.camera);
+    },
 
     get_sourceWidth: function(){
       return _videoElement.videoWidth;
@@ -933,20 +943,14 @@ const HandTrackerThreeHelper = (function(){
       const cvh = that.get_viewHeight();
       const canvasAspectRatio = cvw / cvh;
 
-      // compute vertical field of view:
+      // Match the video's cover crop using focal lengths, not a linear FOV
+      // multiplier. Clamping the derived vertical FOV breaks portrait lenses.
       const vw = that.get_sourceWidth();
       const vh = that.get_sourceHeight();
-      const videoAspectRatio = vw / vh;
-      let fovFactor = (vh > vw) ? (1.0 / videoAspectRatio) : 1.0;
-      let fov = _spec.cameraMinVideoDimFov * fovFactor;
-      
-      if (canvasAspectRatio > videoAspectRatio) {
-        const scale = cvw / vw;
-        const cvhs = vh * scale;
-        fov = 2 * Math.atan( (cvh / cvhs) * Math.tan(0.5 * fov * _deg2rad)) / _deg2rad;
-      }
-
-      fov = Math.min(Math.max(fov, _spec.cameraFovRange[0]), _spec.cameraFovRange[1]);
+      const sourceFov = Math.min(Math.max(_spec.cameraMinVideoDimFov, _spec.cameraFovRange[0]), _spec.cameraFovRange[1]);
+      const sourceFocal = Math.min(vw, vh) / (2 * Math.tan(0.5 * sourceFov * _deg2rad));
+      const coverScale = Math.max(cvw / vw, cvh / vh);
+      const fov = 2 * Math.atan(cvh / (2 * sourceFocal * coverScale)) / _deg2rad;
       
       _cameraFoVY = fov;
       console.log('INFO in update_threeCamera(): camera vertical estimated FoV is', fov, 'deg');

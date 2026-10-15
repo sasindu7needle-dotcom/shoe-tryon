@@ -10,7 +10,7 @@ import { createAnalytics } from './analytics.js';
 import { assertBrowserSupport, countCameras, openCamera, openDemoVideo, stopCamera, TryOnError } from './camera.js';
 import { downloadNeuralNetwork, replaceVideo, setPaused, startFootTracker } from './foot-tracker.js';
 import { disposeObject, loadGltf, setupLighting } from './scene.js';
-import { createCalfOccluder, createContactShadow, ensureIndexedGeometry, fitShoe, placeOccluder } from './shoe-fitter.js';
+import { createShoeOccluders, ensureIndexedGeometry, fitShoe } from './shoe-fitter.js';
 import { composeSnapshot } from './snapshot.js';
 import { applyVariant, listVariants, resolveVariant } from './variants.js';
 
@@ -49,6 +49,8 @@ const state = {
     variant: null,
     models: new Map(),
     mounted: null,
+    occluder: null,
+    mountedOccluders: [],
     mountToken: 0,
     tracking: false,
     lostTimer: 0,
@@ -127,6 +129,7 @@ function layout() {
 
     if (state.three) {
         HandTrackerThreeHelper.resize(width, height);
+        HandTrackerThreeHelper.reset_tracking();
     } else {
         ui.trackerCanvas.width = ui.sceneCanvas.width = width;
         ui.trackerCanvas.height = ui.sceneCanvas.height = height;
@@ -212,7 +215,8 @@ function reportDebugFrame(detections, valid) {
             // the threshold, so a near-miss is visible while tuning.
             score: detection.detected,
             detected: Boolean(detection.isDetected),
-            solved: Boolean(valid[i]),
+            solved: Boolean(state.three.trackersParent[i].userData.poseSolved),
+            lock: state.three.trackersParent[i].userData.footLock,
         })),
         video: { width: ui.video.videoWidth, height: ui.video.videoHeight },
         canvas: { width: ui.trackerCanvas.width, height: ui.trackerCanvas.height },
@@ -304,10 +308,13 @@ async function mountProduct(product, requestedVariant) {
 
         const shoe = fitShoe(THREE, gltf.scene, product.calibration);
         const group = new THREE.Group();
-        group.add(shoe, createContactShadow(THREE, shoe.userData.footprint));
+        group.add(shoe);
+        const occluders = createShoeOccluders(THREE, shoe, state.occluder);
 
         releaseMountedShoe();
         HandTrackerThreeHelper.add_threeObject(group);
+        for (const occluder of occluders) HandTrackerThreeHelper.add_threeOccluder(occluder);
+        state.mountedOccluders = occluders;
         state.mounted = group;
         state.product = product;
         state.variant = variant;
@@ -330,10 +337,11 @@ function releaseMountedShoe() {
     }
     // Left-foot copies own cloned geometry; the helper only detaches them.
     for (const tracker of state.three.trackersLeft) {
-        tracker.children.filter((child) => !child.userData.isOccluder).forEach(disposeObject);
+        tracker.children.forEach(disposeObject);
     }
-    HandTrackerThreeHelper.clear_threeObjects(false);
-    state.mounted.getObjectByName('contactShadow')?.geometry.dispose();
+    HandTrackerThreeHelper.clear_threeObjects(true);
+    state.mountedOccluders.forEach(disposeObject);
+    state.mountedOccluders = [];
     state.mounted = null;
 }
 
@@ -419,7 +427,9 @@ async function flipCamera() {
 
     try {
         await setPaused(true);
+        HandTrackerThreeHelper.reset_tracking();
         stopCamera(state.stream);
+        state.stream = null;
         state.stream = await openCamera(ui.video, facingMode);
         state.facingMode = facingMode;
         await replaceVideo(ui.video);
@@ -430,6 +440,7 @@ async function flipCamera() {
         fail(error);
     } finally {
         state.busy = false;
+        await onVisibilityChange();
     }
 }
 
@@ -440,15 +451,21 @@ async function onVisibilityChange() {
     state.busy = true;
 
     try {
-        if (document.hidden) {
-            // Release the camera (and its privacy indicator) in the background.
-            await setPaused(true);
-            stopCamera(state.stream);
-            state.stream = null;
-        } else {
-            state.stream = await openCamera(ui.video, state.facingMode);
-            await replaceVideo(ui.video);
-            await setPaused(false);
+        // Visibility may change while pause, capture or video replacement is
+        // pending. Reconcile the latest state before releasing the busy guard.
+        while (state.phase === 'running' && Boolean(state.stream) === document.hidden) {
+            if (document.hidden) {
+                await setPaused(true);
+                HandTrackerThreeHelper.reset_tracking();
+                stopCamera(state.stream);
+                state.stream = null;
+                setTracking(false);
+            } else {
+                state.stream = await openCamera(ui.video, state.facingMode);
+                await replaceVideo(ui.video);
+                layout();
+                await setPaused(false);
+            }
         }
     } catch (error) {
         fail(error);
@@ -538,8 +555,7 @@ async function start() {
         ui.sceneCanvas.style.zIndex = 4;
 
         setupLighting(THREE, state.three.renderer, state.three.scene);
-        HandTrackerThreeHelper.add_threeOccluder(placeOccluder(occluder.scene.children[0]));
-        HandTrackerThreeHelper.add_threeOccluder(createCalfOccluder(THREE));
+        state.occluder = occluder.scene.children[0];
 
         renderProductList();
         // The product page passes the colourway the shopper was looking at.
@@ -548,6 +564,7 @@ async function start() {
         setProgress(1);
         setPhase('running');
         renderTracking(false);
+        await onVisibilityChange();
 
         if (debugEnabled) {
             await openDebugPanel();

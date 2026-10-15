@@ -7,6 +7,8 @@
         "build": "vite build",
         "dev": "vite",
         "models:samples": "node scripts/prepare-sample-models.mjs",
+        "models:audit": "node scripts/audit-models.mjs",
+        "models:audit:blender": "python scripts/audit-shoes-blender.py",
         "models:foot-nets": "node scripts/fetch-foot-networks.mjs"
     },
     "devDependencies": {

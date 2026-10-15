@@ -7,12 +7,11 @@
 import { loadGltf, setupLighting } from '../tryon/scene.js';
 import { detectOrientation } from '../tryon/orientation.js';
 import {
-    createCalfOccluder,
+    createShoeOccluders,
     DEFAULT_CALIBRATION,
     ensureIndexedGeometry,
     fitShoe,
     FOOT_FRAME,
-    placeOccluder,
 } from '../tryon/shoe-fitter.js';
 
 const THREE = window.THREE;
@@ -27,6 +26,8 @@ const detectResult = root.querySelector('[data-detect-result]');
 let calibration = { ...DEFAULT_CALIBRATION, ...config.product.calibration };
 let model = null;
 let shoe = null;
+let genericOccluder = null;
+let masks = [];
 
 /* ── Scene ───────────────────────────────────────────────────────── */
 
@@ -57,6 +58,8 @@ function ghostMaterial(color) {
         roughness: 0.6,
     });
 }
+
+const maskMaterial = ghostMaterial(0xfb7185);
 
 function applyMaterial(object, material) {
     object.traverse((child) => {
@@ -92,9 +95,13 @@ function refreshShoe() {
     if (shoe) {
         scene.remove(shoe);
     }
+    masks.forEach(mask => { scene.remove(mask); mask.geometry.dispose(); });
+    masks = [];
     try {
         shoe = fitShoe(THREE, model, calibration);
         scene.add(shoe);
+        masks = createShoeOccluders(THREE, shoe, genericOccluder);
+        masks.forEach(mask => scene.add(applyMaterial(mask, maskMaterial)));
         loadStatus.textContent = '';
     } catch (error) {
         loadStatus.textContent = error.message;
@@ -243,8 +250,7 @@ form.addEventListener('submit', async (event) => {
         ]);
 
         scene.add(applyMaterial(fitShoe(THREE, referenceGltf.scene, config.reference.calibration), ghostMaterial(0x38bdf8)));
-        scene.add(applyMaterial(placeOccluder(occluderGltf.scene.children[0]), ghostMaterial(0xfb7185)));
-        scene.add(applyMaterial(createCalfOccluder(THREE), ghostMaterial(0xfb7185)));
+        genericOccluder = occluderGltf.scene.children[0];
 
         model = productGltf.scene;
         ensureIndexedGeometry(THREE, model);
